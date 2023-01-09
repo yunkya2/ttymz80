@@ -130,7 +130,6 @@ byte z80_read(word address)
   byte data = 0;
   char *device = NULL;
 
-
   if (address < 0x1000) {
 
     /* ROM */
@@ -178,7 +177,7 @@ byte z80_read(word address)
           if (mz80key_i8255pa == 8)
             data = ~0x20;
           if (mz80key_select == mz80key_i8255pa)
-            data = ~mz80key_bit;
+            data &= ~mz80key_bit;
           mz80key_nextstate = KEY_SHIFTPRESS2;
           break;
         case KEY_SHIFTPRESS2:
@@ -225,7 +224,7 @@ byte z80_read(word address)
 
   } else {
 
-    /* Unknown device*/
+    /* Unknown device */
     if (verbose)
       device = "????";
 
@@ -273,9 +272,6 @@ void z80_write(word address, byte data)
     /* 8255 */
     if (address == 0xe000) {
       mz80key_i8255pa = data & 0x0f;
-    } else {
-      if (verbose)
-        printf("8255 write: %04x %02x\n", address, data);
     }
     if (verbose)
       device = "8255";
@@ -294,7 +290,7 @@ void z80_write(word address, byte data)
 
   } else {
 
-    /* Unknown device*/
+    /* Unknown device */
     if (verbose)
       device = "????";
 
