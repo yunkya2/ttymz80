@@ -28,18 +28,18 @@ char *mz80disp[256] = {
   "（", "）", "＋", "＊", "▞", NULL, "╯", "╰",
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 70 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 80 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 90 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* a0 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* b0 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  "　", "チ", "コ", "ソ", "シ", "イ", "ハ", "キ",   /* 80 */
+  "ク", "ニ", "マ", "ノ", "リ", "モ", "ミ", "ラ",
+  "セ", "タ", "ス", "ト", "カ", "ナ", "ヒ", "テ",   /* 90 */
+  "サ", "ン", "ツ", "ロ", "ケ", "「", "ァ", "ャ",
+  "ワ", "ヌ", "フ", "ア", "ウ", "エ", "オ", "ヤ",   /* a0 */
+  "ユ", "ヨ", "ホ", "ヘ", "レ", "メ", "ル", "ネ",
+  "ム", "」", "ィ", "ュ", "ヲ", "、", "ゥ", "ョ",   /* b0 */
+  "゜", "・", "ェ", "ッ", "゛", "。", "ォ", "ー",
   "⭳", "⬇", "⬆", "➡", "⬅", NULL, NULL, NULL, /* c0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* d0 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  "日", "月", "火", "水", "木", "金", "土", "生",   /* d0 */
+  "年", "時", "分", "秒", "円", "￥", "￡", "🐍",
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* e0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   "　", "▘", "▝", "▀", "▖", "▌", "▞", "▛",    /* f0 */
@@ -55,19 +55,19 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, "l", "j", "g", "d", "a" },
     { NULL, NULL, NULL, ";", "k", "h", "f", "s" },
     { NULL, NULL, NULL, ".", "m", "b", "c", "z" },
-    { NULL, NULL, NULL, NULL, ",", "n", "v", "x" },
+    { NULL, NULL, NULL, "/", ",", "n", "v", "x" },
     { NULL, NULL, NULL, "\n", "\x1b[C", NULL, "\x7f", NULL },
     { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", NULL },
   },
   {   /* shift keymap */
-    { NULL, NULL, "_", "(", "&", "%", "#", "!" },
-    { NULL, NULL, NULL, ")", "*", "^", "$", "@" },
-    { NULL, NULL, "+", "O", "U", "T", "E", "Q" },
-    { NULL, NULL, NULL, "P", "I", "Y", "R", "W" },
+    { NULL, NULL, "+", ")", "'", "%", "#", "!" },
+    { NULL, NULL, NULL, "_", "(", "&", "$", "\"" },
+    { NULL, NULL, "*", ":", "@", "]", "E", "<" },
+    { NULL, NULL, NULL, "^", "?", "\\", "[", ">" },
     { NULL, NULL, NULL, "L", "J", "G", "D", "A" },
-    { NULL, NULL, NULL, ":", "K", "H", "F", "S" },
-    { NULL, NULL, NULL, "<", "M", "B", "C" "Z" },
-    { NULL, NULL, NULL, NULL, ">", "N", "V", "X" },
+    { NULL, NULL, NULL, NULL, "K", "H", "F", "S" },
+    { NULL, NULL, NULL, ">", "M", "B", "C" "Z" },
+    { NULL, NULL, NULL, NULL, "<", "N", "V", "X" },
     { NULL, NULL, NULL, NULL, "\x1b[D", NULL, NULL, NULL },
     { NULL, NULL, NULL, NULL, NULL, "\x1b[A", NULL, NULL },
   },
