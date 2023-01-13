@@ -7,16 +7,16 @@
 ## ビルド方法
 
 src/ の中でmakeするだけです
-(WSL2のUbuntu 22.04でしか確認していません)
+(WSL2のUbuntu 20.04でしか確認していません)
 
 ## 使い方
 
 ```
-Usage: ttymz80 [-r <ROM image>] [<mzt/mzf file>]
+Usage: ttymz80 [-r <ROM image>] [<mzt/mzf file>...]
 ```
 
 * ROMイメージとして[MZ-NEW MONITOR](http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6)を内蔵していますが、SP-1002のROMイメージがある場合には `-r` オプションでファイル名を指定することでそれを使用します。
-* テープのLOAD/SAVE処理に対応していないため、mztまたはmzfファイルを指定するとその内容を事前にRAMにロードします。エントリアドレスにGOTO$xxxxでジャンプすることで実行します。
+* テープのLOAD/SAVE処理に対応しました。コマンドラインに並べたmztまたはmzfファイルをLOADのたびに順番に使用していくため、BASICのプログラムをロードする場合は[BASIC本体] [BASICプログラム] の順に指定します。
 
 ## 未対応項目
 
