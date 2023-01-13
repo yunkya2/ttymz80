@@ -7,8 +7,12 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#include <sys/stat.h>
 #include "z80.h"
+#include "mz80cmt.h"
 
+/****************************************************************************/
+/* character table */
 /****************************************************************************/
 
 char *mz80disp[256] = {
@@ -56,8 +60,8 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, ";", "k", "h", "f", "s" },
     { NULL, NULL, NULL, ".", "m", "b", "c", "z" },
     { NULL, NULL, NULL, "/", ",", "n", "v", "x" },
-    { NULL, NULL, NULL, "\n", "\x1b[C", NULL, "\x7f", NULL },
-    { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", NULL },
+    { NULL, NULL, NULL, "\r", "\x1b[C", NULL, "\x7f", NULL },
+      { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", NULL },
   },
   {   /* shift keymap */
     { NULL, NULL, "+", ")", "'", "%", "#", "!" },
@@ -76,16 +80,20 @@ char *mz80keytbl[][10][8] = {
 /****************************************************************************/
 
 int verbose = 0;
+int nodisp = 0;
+int terminate = 0;
 
 /* CPU context */
 z80 cpu;
+
+unsigned long long total_cycles;
 
 /* Memory */
 byte mz80rom[0x1000];
 byte mz80ram[0xc000];
 byte mz80text[0x400];
 
-/* Keyboard support*/
+/* Keyboard support */
 int mz80key_i8255pa;
 int mz80key_select;
 int mz80key_bit;
@@ -98,6 +106,10 @@ enum keystate {
 };
 enum keystate mz80key_state = KEY_NONE;
 enum keystate mz80key_nextstate = KEY_NONE;
+
+char mz80_i8255pc = 0x00;
+
+char *mz80autocmd = NULL;
 
 /****************************************************************************/
 
@@ -189,8 +201,10 @@ byte z80_read(word address)
       }
     } else if (address == 0xe002) {
       static int vblank;      /* dummy VBLANK */
-      data = vblank ? 0x80 : 0x00;
+
+      data = (mz80_i8255pc & 0x0f) | (vblank ? 0x80 : 0x00);
       vblank = 1 - vblank;
+      data |= (mz80cmt_motorstat() << 4) | (mz80cmt_read() << 5);
     }
     if (verbose)
       device = "8255";
@@ -261,8 +275,10 @@ void z80_write(word address, byte data)
     p = mz80disp[data];
     p = p ? p : "";
     if (!verbose) {
-      printf("\x1b[%d;%dH%s", y + 1, (x * 2) + 1, p);
-      fflush(stdout);
+      if (!nodisp) {
+        printf("\x1b[%d;%dH%s", y + 1, (x * 2) + 1, p);
+        fflush(stdout);
+      }
     } else {
       printf("VRAM W (%2d,%2d) %02x %s\n", x, y, data, p);
     }
@@ -272,6 +288,22 @@ void z80_write(word address, byte data)
     /* 8255 */
     if (address == 0xe000) {
       mz80key_i8255pa = data & 0x0f;
+    } else if (address == 0xe002) {
+      ;
+    } else if (address == 0xe003) {
+      if (!(data & 0x80)) {
+        int bit = (data >> 1) & 3;
+        int set = data & 1;
+        int prev = mz80_i8255pc;
+
+        if (bit == 3) {
+          mz80cmt_motoron(set, total_cycles);
+        } else if (bit == 1) {
+          mz80cmt_write(set, total_cycles);
+        }
+        mz80_i8255pc &= ~(1 << bit);
+        mz80_i8255pc |= set << bit;
+      }
     }
     if (verbose)
       device = "8255";
@@ -376,27 +408,53 @@ static void mz80main(void)
 {
   struct termios oldt, newt;
   int oldf;
+  int x;
 
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
   newt.c_lflag &= ~(ICANON | ECHO);
+  newt.c_iflag &= ~(INLCR | IGNCR | ICRNL);
   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
   oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
   fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
 
   z80_reset(&cpu);
 
-  while (mz80keyscan() >= 0) {
+  x = 1000;
+  do {
+    if (--x <= 0) {
+      if (mz80keyscan() < 0) {
+        break;
+      }
+      x = 1000;
+    }
+
     if (cpu.pc == 0x003e) {
       printf("\a");     /* bell */
       fflush(stdout);
     }
 
     z80_main(&cpu);
-  }
+    total_cycles += cpu.cycles;
+  } while (cpu.pc != 0);
+
+  printf("\n");
 
   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
   fcntl(STDIN_FILENO, F_SETFL, oldf);
+}
+
+char *loadfiles[10];
+int loadfiles_num = 0;
+
+char *mz80cmt_loadfilename(void)
+{
+  static int n;
+
+  if (n < loadfiles_num) {
+    return loadfiles[n++];
+  }
+  return "";
 }
 
 __asm__ (
@@ -411,8 +469,8 @@ int main(int argc, char **argv)
   int i;
   int help = 0;
 
-  extern char mz_newmon;
-  memcpy(mz80rom, &mz_newmon, sizeof(mz80rom));
+  extern char mz_newmon[];
+  memcpy(mz80rom, mz_newmon, sizeof(mz80rom));
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-r") == 0) {
@@ -429,31 +487,22 @@ int main(int argc, char **argv)
       } else {
         help = 1;
       }
+    } else if (strcmp(argv[i], "-n") == 0) {
+      nodisp = 1;
     } else {
-      char header[0x80];
-      int addr;
-      int jump;
-      char *p;
-
-      fp = fopen(argv[i], "rb");
-      if (fp == NULL) {
+      struct stat statbuf;
+      if (stat(argv[i], &statbuf) < 0) {
         help = 1;
         break;
       }
-      fread(header, sizeof(header), 1, fp);
-      addr = header[0x14] + (header[0x15] << 8);
-      jump = header[0x16] + (header[0x17] << 8);
-      printf("Loading: \"");
-      for (p = &header[1]; *p >= ' '; p++)
-        putchar(*p);
-      printf("\" $%04x- entry $%04x\n", addr, jump);
-      fread(&mz80ram[addr - 0x1000], 32768, 1, fp);
-      fclose(fp);
+      if (loadfiles_num < (sizeof(loadfiles) / sizeof(loadfiles[0]))) {
+        loadfiles[loadfiles_num++] = argv[i];
+      }
     }
   }
 
   if (help) {
-    printf("Usage: ttymz80 [-r <ROM image>] [<mzt/mzf file>]\n");
+    printf("Usage: ttymz80 [-n][-r <ROM image>] [<mzt/mzf file>...]\n");
     return 1;
   }
 
