@@ -64,6 +64,8 @@ static byte sumdata[2];
 
 static FILE *fp;
 
+extern int nowait;
+
 /****************************************************************************/
 /* motor control */
 /****************************************************************************/
@@ -74,6 +76,7 @@ int mz80cmt_motorstat(void)
     if (--motorchg_delay <= 0) {
       motor = 1;        /* delay done */
       saveload = SL_IDLE;
+      nowait = 1;
     }
   }
   return motor;
@@ -95,6 +98,7 @@ void mz80cmt_motoron(int stat, int cycle)
     /* motor stop */
     motor = 0;
     motorchg_prev = cycle;
+    nowait = 0;
   } else {
     /* motor start */
     unsigned int term = cycle - motorchg_prev;
@@ -103,6 +107,7 @@ void mz80cmt_motoron(int stat, int cycle)
       motorchg_delay = 20;    /* delayed start */
     } else {
       motor = 1;              /* immediate start */
+      nowait = 1;
     }
   }
 }
@@ -139,7 +144,7 @@ int mz80cmt_read(void)
     switch (blockstate) {
       case BS_LEAD:         /* lead bit 0 */
         rwaction = AC_BIT0;
-        repeatcnt = 500;
+        repeatcnt = 10000;
         break;
 
       case BS_HEAD1:        /* head bit 1 x 40 or 20 */

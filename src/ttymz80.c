@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <time.h>
 #include <termios.h>
 #include <sys/stat.h>
 #include "z80.h"
@@ -45,7 +46,7 @@ char *mz80disp[256] = {
   "日", "月", "火", "水", "木", "金", "土", "生",   /* d0 */
   "年", "時", "分", "秒", "円", "￥", "￡", "🐍",
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* e0 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, "■",
   "　", "▘", "▝", "▀", "▖", "▌", "▞", "▛",    /* f0 */
   "▗", "▚", "▐", "▜", "▄", "▙", "▟", "█",
 };
@@ -81,6 +82,7 @@ char *mz80keytbl[][10][8] = {
 
 int verbose = 0;
 int nodisp = 0;
+int nowait = 0;
 int terminate = 0;
 
 /* CPU context */
@@ -108,6 +110,28 @@ enum keystate mz80key_state = KEY_NONE;
 enum keystate mz80key_nextstate = KEY_NONE;
 
 char mz80_i8255pc = 0x00;
+
+int mz80cur_stat;
+int mz80cur_timer;
+int mz80vsync_stat = 0;
+int mz80vsync_timer = 0;
+int mz80tempo_stat = 0;
+int mz80tempo_timer = 0;
+
+struct i8253ctr {
+  int start;
+  int enable;
+  int mode;
+  int fmt;
+  int count;
+  int reload;
+  int latch;
+  int latched;
+  int hilo;
+  int loval;
+} mz80i8253ctr[3];
+
+int mz80count1_cycle = 0;
 
 char *mz80autocmd = NULL;
 
@@ -200,10 +224,11 @@ byte z80_read(word address)
         mz80key_state = mz80key_nextstate;
       }
     } else if (address == 0xe002) {
-      static int vblank;      /* dummy VBLANK */
+      static int x;
 
-      data = (mz80_i8255pc & 0x0f) | (vblank ? 0x80 : 0x00);
-      vblank = 1 - vblank;
+      data = mz80_i8255pc & 0x0f;
+      data |= (1 - mz80vsync_stat) << 7;
+      data |= mz80cur_stat << 6;
       data |= (mz80cmt_motorstat() << 4) | (mz80cmt_read() << 5);
     }
     if (verbose)
@@ -213,28 +238,28 @@ byte z80_read(word address)
 
     /* 8253 */
     data = 0;
-    static int hilo;
-    static int count2;        /* dummy Count2 */
-
-    switch (address) {
-      case 0xe006:
-        data = (hilo % 2) ? (count2 & 0xff) : (count2 >> 8);
-        hilo = 1 - hilo;
-        if (hilo == 0)
-          count2--;
-        break;
+    if (address < 0xe007) {
+      struct i8253ctr *p = &mz80i8253ctr[address - 0xe004];
+      if (!p->latched) {
+        p->latch = p->count;
+      }
+      if (p->hilo) {
+        data = (p->latch) >> 8;
+        p->latched = 0;
+      } else {
+        data = p->latch & 0xff;
+      }
+      p->hilo = 1 - p->hilo;
     }
     if (verbose)
       device = "8253";
 
   } else if (address == 0xe008) {
 
-    /* GPIO */
-    static int stat;          /* dummy music timer */
-    data = stat ? 0xff : 0xfe;
-    stat = 1 - stat;
+    /* TEMPO */
+    data = mz80tempo_stat ? 0xff : 0xfe;
     if (verbose)
-      device = "GPIO";
+      device = "TEMPO";
 
   } else {
 
@@ -288,6 +313,10 @@ void z80_write(word address, byte data)
     /* 8255 */
     if (address == 0xe000) {
       mz80key_i8255pa = data & 0x0f;
+      if (!(data & 0x80)) {
+        mz80cur_stat = 0;
+        mz80cur_timer = 0;
+      }
     } else if (address == 0xe002) {
       ;
     } else if (address == 0xe003) {
@@ -311,14 +340,47 @@ void z80_write(word address, byte data)
   } else if (address >= 0xe004 && address <= 0xe007) {
 
     /* 8253 */
+    if (address < 0xe007) {
+      struct i8253ctr *p = &mz80i8253ctr[address - 0xe004];
+      if (p->hilo) {
+        int newval = (data << 8) | p->loval;
+        p->reload = newval;
+        if (p->mode == 0) {
+          p->enable = 0;
+          p->start = 1;
+        } else {
+          if (!p->enable) {
+            p->start = 1;
+          }
+        }
+      } else {
+        p->loval = data;
+      }
+      p->hilo = 1 - p->hilo;
+    } else {
+      int ch = (data & 0xc0) >> 6;
+      struct i8253ctr *p = &mz80i8253ctr[ch];
+      p->fmt = (data & 0x0e) >> 1;
+      if (p->fmt == 0) {
+        p->latch = p->count;
+        p->latched = 1;
+      } else {
+        int mode = (data & 0x0e) >> 1;
+        p->latched = 0;
+        p->mode = mode;
+        p->start = 0;
+        p->enable = 0;
+        p->reload = 0;
+      }
+    }
     if (verbose)
       device = "8253";
 
   } else if (address == 0xe008) {
 
-    /* GPIO */
+    /* TEMPO */
     if (verbose)
-      device = "GPIO";
+      device = "TEMPO";
 
   } else {
 
@@ -367,7 +429,10 @@ static int mz80keyscan(void)
     if (ch == '\x11') {         /* ^Q : exit */
       return -1;
     } else if (ch == '\x01') {  /* ^A : switch verbose */
-      verbose= 1 - verbose;
+      verbose = 1 - verbose;
+      return 0;
+    } else if (ch == '\x17') {  /* ^W : wait */
+      nowait = 1 - nowait;
       return 0;
     } else if (ch == '\x1b') {  /* ESC sequence start */
       p = key;
@@ -404,11 +469,22 @@ static int mz80keyscan(void)
   return 0;
 }
 
+#define CPU_2MHZ      (2 * 1000 * 1000)
+#define VSYNC_LOW     (CPU_2MHZ * 230 / 260 / 60)
+#define VSYNC_HIGH    (CPU_2MHZ *  30 / 260 / 60)
+#define CURSOR_HZ     (3)
+#define TEMPO_HZ      (100)
+#define SYNCHZ        (1000)
+#define NANOSEC       (1000 * 1000 * 1000)
+#define COUNTER1_HZ   31250
+
 static void mz80main(void)
 {
   struct termios oldt, newt;
   int oldf;
   int x;
+  struct timespec oldts, newts, wait;
+  long cycles;
 
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
@@ -418,11 +494,17 @@ static void mz80main(void)
   oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
   fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
 
+  total_cycles = 0;
+  cycles = 0;
+  wait.tv_sec = 0;
+  wait.tv_nsec = NANOSEC / SYNCHZ;
+
   z80_reset(&cpu);
+  clock_gettime(CLOCK_MONOTONIC, &oldts);
 
   x = 1000;
   do {
-    if (--x <= 0) {
+    if (!nowait || (--x <= 0)) {
       if (mz80keyscan() < 0) {
         break;
       }
@@ -436,6 +518,83 @@ static void mz80main(void)
 
     z80_main(&cpu);
     total_cycles += cpu.cycles;
+
+    mz80cur_timer += cpu.cycles;
+    if (mz80cur_timer >= CPU_2MHZ / CURSOR_HZ) {
+      mz80cur_timer -= CPU_2MHZ / CURSOR_HZ;
+      mz80cur_stat = 1 - mz80cur_stat;
+    }
+
+    mz80tempo_timer += cpu.cycles;
+    if (mz80tempo_timer >= CPU_2MHZ / TEMPO_HZ) {
+      mz80tempo_timer -= CPU_2MHZ / TEMPO_HZ;
+      mz80tempo_stat = 1 - mz80tempo_stat;
+    }
+
+    mz80vsync_timer += cpu.cycles;
+    if (mz80vsync_stat) {
+      if (mz80vsync_timer >= VSYNC_HIGH) {
+        mz80vsync_timer -= VSYNC_HIGH;
+        mz80vsync_stat = 0;
+      }
+    } else {
+      if (mz80vsync_timer >= VSYNC_LOW) {
+        mz80vsync_timer -= VSYNC_LOW;
+        mz80vsync_stat = 1;
+      }
+    }
+
+    mz80count1_cycle += cpu.cycles;
+    if (mz80count1_cycle >= (CPU_2MHZ / COUNTER1_HZ)) {
+      mz80count1_cycle -= CPU_2MHZ / COUNTER1_HZ;
+
+      int i;
+      struct i8253ctr *p;
+      for (i = 0; i < 3; i++) {
+        p = &mz80i8253ctr[i];
+        if (p->start && !p->enable) {
+          p->start = 0;
+          p->enable = 1;
+          p->count = p->reload;
+        }
+      }
+      
+      p = &mz80i8253ctr[1];       /* 8253 counter 1 */
+      if (p->enable) {
+        if ((--p->count <= 0) ||
+            (p->count <= 1 && p->mode == 2)) {
+          p->count = p->reload;
+          p++;                    /* 8253 counter 2 */
+          if (p->enable) {
+            if ((--p->count <= 0) ||
+                (p->count <= 1 && p->mode == 2)) {
+              cpu.intr = 1;
+            }
+          }
+        }
+      }
+    }
+
+    if (z80_intack(&cpu)) {
+      if (cpu.intr) {
+        z80_int(&cpu, 0);
+        cpu.intr = 0;
+      }
+    }
+
+    if (!nowait) {
+      cycles += cpu.cycles;
+      if (cycles > (CPU_2MHZ / SYNCHZ)) {
+        nanosleep(&wait, NULL);
+        clock_gettime(CLOCK_MONOTONIC, &newts);
+        long nsec2;
+        nsec2 = (newts.tv_sec - oldts.tv_sec) * NANOSEC;
+        nsec2 += newts.tv_nsec - oldts.tv_nsec;
+        cycles -= nsec2 / (NANOSEC / CPU_2MHZ);
+        oldts = newts;
+      } 
+    }
+
   } while (cpu.pc != 0);
 
   printf("\n");
