@@ -23,10 +23,10 @@ char *mz80disp[256] = {
   "Ｘ", "Ｙ", "Ｚ", "┼", "└", "┘", "├", "┴",
   "０", "１", "２", "３", "４", "５", "６", "７",   /* 20 */
   "８", "９", "－", "＝", "；", "／", "．", "，",
-  NULL, NULL, NULL, NULL, NULL, NULL, "▔", "▎",   /* 30 */
-  NULL, NULL, "▄", NULL, "▁", "▕" , "▂", NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, "▔▔", "▎ ",   /* 30 */
+  NULL, NULL, "▄", NULL, "▁▁", "▕" , "▂▂", NULL,
   "　", "♠", "◥", "█", "♦", "←", "♣", "●",       /* 40 */
-  "○", "？", NULL, "╭", "╮", "	◣", "◢	", "：",
+  "○", "？", "\1●", "╭", "╮", "	◣", "◢	", "：",
   "↑", "＜", "［", "♥", "］", "＠", "◤", "＞",     /* 50 */
   NULL, "＼", NULL, "▚", "┌", "┐", "┤", "┬",
   "π", "！", "\" ", "＃", "＄", "％", "＆", "' ",  /* 60 */
@@ -41,12 +41,12 @@ char *mz80disp[256] = {
   "ユ", "ヨ", "ホ", "ヘ", "レ", "メ", "ル", "ネ",
   "ム", "」", "ィ", "ュ", "ヲ", "、", "ゥ", "ョ",   /* b0 */
   "゜", "・", "ェ", "ッ", "゛", "。", "ォ", "ー",
-  "⭳", "⬇", "⬆", "➡", "⬅", NULL, NULL, NULL, /* c0 */
+  "⭳ ", "\1↓", "\1↑", "\1→", "\1←", "\1Ｈ", "\1Ｃ", NULL, /* c0 */
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
   "日", "月", "火", "水", "木", "金", "土", "生",   /* d0 */
   "年", "時", "分", "秒", "円", "￥", "￡", "🐍",
   NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* e0 */
-  NULL, NULL, NULL, NULL, NULL, NULL, NULL, "■",
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, "░░",
   "　", "▘", "▝", "▀", "▖", "▌", "▞", "▛",    /* f0 */
   "▗", "▚", "▐", "▜", "▄", "▙", "▟", "█",
 };
@@ -82,7 +82,7 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, ".", "m", "b", "c", "z" },
     { NULL, NULL, NULL, "/", ",", "n", "v", "x" },
     { NULL, NULL, NULL, "\r", "\x1b[C", NULL, "\x7f", NULL },
-      { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", NULL },
+    { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", "\x1b[H" },
   },
   {   /* shift keymap */
     { NULL, NULL, "+", ")", "'", "%", "#", "!" },
@@ -94,7 +94,7 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, ">", "M", "B", "C" "Z" },
     { NULL, NULL, NULL, NULL, "<", "N", "V", "X" },
     { NULL, NULL, NULL, NULL, "\x1b[D", NULL, NULL, NULL },
-    { NULL, NULL, NULL, NULL, NULL, "\x1b[A", NULL, NULL },
+    { NULL, NULL, NULL, NULL, NULL, "\x1b[A", NULL, "\x1b[F" },
   },
 };
 
@@ -315,14 +315,23 @@ void z80_write(word address, byte data)
     int x, y;
     int offset = address & 0x3ff;
     char *p;
+    int rev = 0;
     x = offset % 40;
     y = offset / 40;
     mz80text[offset] = data;
     p = halfwidth ? mz80disphalf[data] : mz80disp[data];
     p = p ? p : "";
+    if (*p == '\1') {
+      p++;
+      rev = 1;
+    }
     if (!verbose) {
       if (!nodisp) {
-        printf("\x1b[%d;%dH%s", y + 1, (x * (halfwidth ? 1 : 2)) + 1, p);
+        printf("\x1b[%d;%dH%s%s%s",
+               y + 1, (x * (halfwidth ? 1 : 2)) + 1,
+               rev ? "\x1b[7m" : "",
+               p,
+               rev ? "\x1b[27m" : "");
         fflush(stdout);
       }
     } else {
