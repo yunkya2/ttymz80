@@ -105,6 +105,7 @@ int nodisp = 0;
 int nowait = 0;
 int halfwidth = 0;
 int terminate = 0;
+int mz700 = 0;
 
 /* CPU context */
 z80 cpu;
@@ -114,7 +115,7 @@ unsigned long long total_cycles;
 /* Memory */
 byte mz80rom[0x1000];
 byte mz80ram[0xc000];
-byte mz80text[0x400];
+byte mz80text[0x1000];
 
 /* Keyboard support */
 int mz80key_i8255pa;
@@ -202,13 +203,13 @@ byte z80_read(word address)
   } else if (address >= 0xd000 && address < 0xe000) {
 
     /* Text VRAM */
-    int x, y;
-    int offset = address & 0x3ff;
-    x = offset % 40;
-    y = offset / 40;
+    int offset = mz700 ? address & 0x0fff : address & 0x03ff;
     data = mz80text[offset];
-    if (verbose)
-      printf("VRAM R (%2d,%2d) %02x\n", x, y, data);
+    if (verbose) {
+      int x = offset % 40;
+      int y = offset / 40;
+      printf("VRAM R %04x (%2d,%2d) %02x\n", offset, x, y, data);
+    }
 
   } else if (address >= 0xe000 && address <= 0xe003) {
 
@@ -298,6 +299,8 @@ byte z80_read(word address)
 
 /****************************************************************************/
 
+static const int colconv[8] = { 0, 4, 1, 5, 2, 6, 3, 7 };
+
 void z80_write(word address, byte data)
 {
   char *device = NULL;
@@ -313,20 +316,31 @@ void z80_write(word address, byte data)
 
     /* Text VRAM */
     int x, y;
-    int offset = address & 0x3ff;
+    int offset = mz700 ? address & 0x0fff : address & 0x03ff;
     char *p;
     int rev = 0;
-    x = offset % 40;
-    y = offset / 40;
+    int attr = 0;
     mz80text[offset] = data;
+
+    if (mz700) {
+      data = mz80text[offset & 0x07ff];
+      attr = mz80text[(offset & 0x07ff) + 0x0800];
+    }
     p = halfwidth ? mz80disphalf[data] : mz80disp[data];
     p = p ? p : "";
     if (*p == '\1') {
       p++;
       rev = 1;
     }
+    x = (offset & 0x03ff) % 40;
+    y = (offset & 0x03ff) / 40;
     if (!verbose) {
-      if (!nodisp) {
+      if (!nodisp && !(offset & 0x0400) && y < 25) {
+        if (mz700) {
+          printf("\x1b[%d;%dm",
+                 30 + colconv[(attr >> 4) & 7], 
+                 40 + colconv[attr & 7]);
+        }
         printf("\x1b[%d;%dH%s%s%s",
                y + 1, (x * (halfwidth ? 1 : 2)) + 1,
                rev ? "\x1b[7m" : "",
@@ -660,6 +674,9 @@ int main(int argc, char **argv)
 
   extern char mz_newmon[];
   memcpy(mz80rom, mz_newmon, sizeof(mz80rom));
+
+  if (mz700)
+    memset(&mz80text[0x800], 0x70, 0x800);
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-r") == 0) {
