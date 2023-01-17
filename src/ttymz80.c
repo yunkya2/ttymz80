@@ -51,6 +51,26 @@ char *mz80disp[256] = {
   "▗", "▚", "▐", "▜", "▄", "▙", "▟", "█",
 };
 
+char *mz80disphalf[256] = {
+  " ", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O",
+  "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",  0,   0,   0,   0,   0,
+  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "-", "=", ";", "/", ".", ",",
+  " ",  0,   0,   0,   0,   0,  "▔",  0,   0,   0,   0,   0,   0,   0,   0,   0,
+   0,   0,   0,   0,   0,   0,   0,   0,   0,  "?",  0,   0,   0,   0,   0,  ":",
+   0,  "<", "[",  0,  "]", "@",  0,  ">",  0,  "\\", 0,   0,   0,   0,   0,   0,
+   0,  "!", "\"","#", "$", "%", "&", "\'","(", ")", "+", "*",  0,   0,   0,   0,
+   0,   0,   0,   0,   0,   0,  "/", "\\", 0,   0,   0,   0,   0,   0,   0,   0,
+
+  " ", "ﾁ", "ｺ", "ｿ", "ｼ", "ｲ", "ﾊ", "ｷ", "ｸ", "ﾆ", "ﾏ", "ﾉ", "ﾘ", "ﾓ", "ﾐ", "ﾗ",
+  "ｾ", "ﾀ", "ｽ", "ﾄ", "ｶ", "ﾅ", "ﾋ", "ﾃ", "ｻ", "ﾝ", "ﾂ", "ﾛ", "ｹ", "｢", "ｧ", "ｬ",
+  "ﾜ", "ﾇ", "ﾌ", "ｱ", "ｳ", "ｴ", "ｵ", "ﾔ", "ﾕ", "ﾖ", "ﾎ", "ﾍ", "ﾚ", "ﾒ", "ﾙ", "ﾈ",
+  "ﾑ", "｣", "ｨ", "ｭ", "ｦ", "､", "ｩ", "ｮ", "ﾟ", "･", "ｪ", "ｯ", "ﾞ", "｡", "ｫ", "ｰ",
+   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0, "░",
+   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+};
+
 char *mz80keytbl[][10][8] = {
   {   /* non-shift keymap */
     { NULL, NULL, "-", "9", "7", "5", "3", "1" },
@@ -83,6 +103,7 @@ char *mz80keytbl[][10][8] = {
 int verbose = 0;
 int nodisp = 0;
 int nowait = 0;
+int halfwidth = 0;
 int terminate = 0;
 
 /* CPU context */
@@ -297,11 +318,11 @@ void z80_write(word address, byte data)
     x = offset % 40;
     y = offset / 40;
     mz80text[offset] = data;
-    p = mz80disp[data];
+    p = halfwidth ? mz80disphalf[data] : mz80disp[data];
     p = p ? p : "";
     if (!verbose) {
       if (!nodisp) {
-        printf("\x1b[%d;%dH%s", y + 1, (x * 2) + 1, p);
+        printf("\x1b[%d;%dH%s", y + 1, (x * (halfwidth ? 1 : 2)) + 1, p);
         fflush(stdout);
       }
     } else {
@@ -648,6 +669,8 @@ int main(int argc, char **argv)
       }
     } else if (strcmp(argv[i], "-n") == 0) {
       nodisp = 1;
+    } else if (strcmp(argv[i], "-H") == 0) {
+      halfwidth = 1;
     } else {
       struct stat statbuf;
       if (stat(argv[i], &statbuf) < 0) {
@@ -661,7 +684,7 @@ int main(int argc, char **argv)
   }
 
   if (help) {
-    printf("Usage: ttymz80 [-n][-r <ROM image>] [<mzt/mzf file>...]\n");
+    printf("Usage: ttymz80 [-n][-H][-r <ROM image>] [<mzt/mzf file>...]\n");
     return 1;
   }
 
