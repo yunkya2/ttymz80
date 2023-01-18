@@ -65,6 +65,7 @@ static byte sumdata[2];
 static FILE *fp;
 
 extern int nowait;
+static int nowait_save = -1;
 
 /****************************************************************************/
 /* motor control */
@@ -76,6 +77,8 @@ int mz80cmt_motorstat(void)
     if (--motorchg_delay <= 0) {
       motor = 1;        /* delay done */
       saveload = SL_IDLE;
+      if (nowait_save < 0)
+        nowait_save = nowait;
       nowait = 1;
     }
   }
@@ -98,15 +101,19 @@ void mz80cmt_motoron(int stat, int cycle)
     /* motor stop */
     motor = 0;
     motorchg_prev = cycle;
-    nowait = 0;
+    if (nowait_save >= 0)
+      nowait = nowait_save;
+    nowait_save = -1;
   } else {
     /* motor start */
     unsigned int term = cycle - motorchg_prev;
     motorchg_prev = cycle;
-    if (term > 200000) {
+    if (term > 300000) {
       motorchg_delay = 20;    /* delayed start */
     } else {
       motor = 1;              /* immediate start */
+      if (nowait_save < 0)
+        nowait_save = nowait;
       nowait = 1;
     }
   }

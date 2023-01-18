@@ -695,6 +695,8 @@ int main(int argc, char **argv)
       }
     } else if (strcmp(argv[i], "-n") == 0) {
       nodisp = 1;
+    } else if (strcmp(argv[i], "-w") == 0) {
+      nowait = 1;
     } else if (strcmp(argv[i], "-H") == 0) {
       halfwidth = 1;
     } else {
@@ -710,7 +712,7 @@ int main(int argc, char **argv)
   }
 
   if (help) {
-    printf("Usage: ttymz80 [-n][-H][-r <ROM image>] [<mzt/mzf file>...]\n");
+    printf("Usage: ttymz80 [-n][-w][-H][-r <ROM image>] [<mzt/mzf file>...]\n");
     return 1;
   }
 
