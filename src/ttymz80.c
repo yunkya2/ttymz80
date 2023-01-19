@@ -98,6 +98,32 @@ char *mz80keytbl[][10][8] = {
   },
 };
 
+char *mz700keytbl[][10][8] = {
+  {   /* non-shift keymap */
+      { NULL, NULL, "=",  NULL, NULL, ";",  ":",  "\r" },
+      { "y",  "z",  "@",  "(",  ")",  NULL, NULL, NULL },
+      { "q",  "r",  "s",  "t",  "u",  "v",  "w",  "x"  },
+      { "i",  "j",  "k",  "l",  "m",  "n",  "o",  "p"  },
+      { "a",  "b",  "c",  "d",  "e",  "f",  "g",  "h"  },
+      { "1",  "2",  "3",  "4",  "5",  "6",  "7",  "8"  },
+      { "*",  "+",  "-",  " ",  "0",  "9",  ",",  "."  },
+      { NULL, "\x7f", "\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D", "?", "/" },
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+  }, {
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      { "Y",  "Z",  "@",  NULL, NULL, NULL, NULL, NULL },
+      { "Q",  "R",  "S",  "T",  "U",  "V",  "W",  "X"  },
+      { "I",  "J",  "K",  "L",  "M",  "N",  "O",  "P"  },
+      { "A",  "B",  "C",  "D",  "E",  "F",  "G",  "H"  },
+      { "!",  "\"", "#",  "$",  "%",  "&",  "'",  "["  },
+      { NULL, NULL, "\\", NULL, NULL, "]",  "<",  ">"  },
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+      { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+  },
+};
+
 /****************************************************************************/
 
 int verbose = 0;
@@ -114,10 +140,13 @@ unsigned long long total_cycles;
 
 /* Memory */
 byte mz80rom[0x1000];
-byte mz80ram[0xc000];
+byte mz80ram[0x10000];
 byte mz80text[0x1000];
+int mz700bank0 = 0;
+int mz700bank1 = 0;
 
 /* Keyboard support */
+char *(*keytbl)[10][8] = mz80keytbl;
 int mz80key_i8255pa;
 int mz80key_select;
 int mz80key_bit;
@@ -188,16 +217,16 @@ byte z80_read(word address)
   byte data = 0;
   char *device = NULL;
 
-  if (address < 0x1000) {
+  if (!mz700bank0 && address < 0x1000) {
 
     /* ROM */
     data = mz80rom[address];
     device = disasm(address, "ROM ");
 
-  } else if (address < 0xd000) {
+  } else if (mz700bank1 || address < 0xd000) {
 
     /* RAM */
-    data = mz80ram[address - 0x1000];
+    data = mz80ram[address];
     device = disasm(address, "RAM ");
 
   } else if (address >= 0xd000 && address < 0xe000) {
@@ -305,10 +334,10 @@ void z80_write(word address, byte data)
 {
   char *device = NULL;
   
-  if (address >= 0x1000 && address < 0xd000) {
+  if (mz700bank1 || address < 0xd000) {
 
     /* RAM */
-    mz80ram[address - 0x1000] = data;
+    mz80ram[address] = data;
     if (verbose)
       device = "RAM ";
 
@@ -442,7 +471,8 @@ void z80_write(word address, byte data)
 
 byte z80_in(word address)
 {
-  printf("z80_in: %04x\n", address);
+  if (verbose)
+    printf("z80_in: %04x\n", address);
   return 0;
 }
 
@@ -450,7 +480,21 @@ byte z80_in(word address)
 
 void z80_out(word address, byte data)
 {
-  printf("z80_out: %04x %02x\n", address, data);
+  if (address == 0xe0) {
+    mz700bank0 = 1;
+  } else if (address == 0xe1) {
+    mz700bank1 = 1;
+  } else if (address == 0xe2) {
+    mz700bank0 = 0;
+  } else if (address == 0xe3) {
+    mz700bank1 = 0;
+  } else if (address == 0xe4) {
+    mz700bank0 = 0;
+    mz700bank1 = 0;
+  }
+
+  if (verbose)
+    printf("z80_out: %04x %02x\n", address, data);
 }
 
 /****************************************************************************/
@@ -500,8 +544,8 @@ static int mz80keyscan(void)
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 10; j++) {
       for (k = 0; k < 8; k++) {
-        if (mz80keytbl[i][j][k] &&
-            (strcmp(mz80keytbl[i][j][k], key) == 0)) {
+        if (keytbl[i][j][k] &&
+            (strcmp(keytbl[i][j][k], key) == 0)) {
           mz80key_select = j;
           mz80key_bit = 1 << (7 - k);
           mz80key_nextstate = i ? KEY_SHIFTPRESS : KEY_PRESS;
@@ -639,7 +683,7 @@ static void mz80main(void)
       } 
     }
 
-  } while (cpu.pc != 0);
+  } while (!((cpu.pc == 0) && (mz700bank0 == 0)));
 
   printf("\n");
 
@@ -663,7 +707,10 @@ char *mz80cmt_loadfilename(void)
 __asm__ (
   ".global mz_newmon\n"
   "mz_newmon:\n"
-  ".incbin \"mz_newmon/NEWMON.ROM\""
+  ".incbin \"mz_newmon/NEWMON.ROM\"\n"
+  ".global mz_newmon7\n"
+  "mz_newmon7:\n"
+  ".incbin \"mz_newmon/NEWMON7.ROM\""
 );
 
 int main(int argc, char **argv)
@@ -671,12 +718,7 @@ int main(int argc, char **argv)
   FILE *fp;
   int i;
   int help = 0;
-
-  extern char mz_newmon[];
-  memcpy(mz80rom, mz_newmon, sizeof(mz80rom));
-
-  if (mz700)
-    memset(&mz80text[0x800], 0x70, 0x800);
+  int romload = 0;
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-r") == 0) {
@@ -689,6 +731,7 @@ int main(int argc, char **argv)
         }
         fread(mz80rom, sizeof(mz80rom), 1, fp);
         fclose(fp);
+        romload = 1;
         i++;
       } else {
         help = 1;
@@ -699,6 +742,9 @@ int main(int argc, char **argv)
       nowait = 1;
     } else if (strcmp(argv[i], "-H") == 0) {
       halfwidth = 1;
+    } else if (strcmp(argv[i], "-7") == 0) {
+      mz700 = 1;
+      keytbl = mz700keytbl;
     } else {
       struct stat statbuf;
       if (stat(argv[i], &statbuf) < 0) {
@@ -714,6 +760,17 @@ int main(int argc, char **argv)
   if (help) {
     printf("Usage: ttymz80 [-n][-w][-H][-r <ROM image>] [<mzt/mzf file>...]\n");
     return 1;
+  }
+
+  if (!romload) {
+    if (mz700) {
+      extern char mz_newmon7[];
+      memcpy(mz80rom, mz_newmon7, sizeof(mz80rom));
+      memset(&mz80text[0x800], 0x71, 0x800);
+    } else {
+      extern char mz_newmon[];
+      memcpy(mz80rom, mz_newmon, sizeof(mz80rom));
+    }
   }
 
   mz80main();
