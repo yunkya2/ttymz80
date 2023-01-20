@@ -651,11 +651,13 @@ static void mz80main(void)
 
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
-  newt.c_lflag &= ~(ICANON | ECHO);
-  newt.c_iflag &= ~(INLCR | IGNCR | ICRNL);
+  cfmakeraw(&newt);
+  newt.c_oflag |= OPOST;
   tcsetattr(STDIN_FILENO, TCSANOW, &newt);
   oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
   fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+  printf("\x1b[?25l\n");    /* cursor off */
 
   total_cycles = 0;
   cycles = 0;
@@ -705,7 +707,7 @@ static void mz80main(void)
       if (len >= 0) {
         key[len] = '\0';
         mz80scankey = key;
-        if (strcmp(key, "\x11") == 0) {       /* ^Q : exit */
+        if (strcmp(key, "\x03") == 0) {       /* ^C : exit */
           break;
         } else if (strcmp(key, "\x01") == 0) {/* ^A : switch verbose */
           verbose = 1 - verbose;
@@ -804,10 +806,10 @@ static void mz80main(void)
 
   } while (!((cpu.pc == 0) && (mz700bank0 == 0)));
 
-  printf("\n");
-
   tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
   fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+  printf("\x1b[0m\x1b[?25h\n");     /* cursor on */
 }
 
 char *loadfiles[10];
