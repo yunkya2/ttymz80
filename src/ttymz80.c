@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
+#include <ctype.h>
 #include <termios.h>
 #include <sys/stat.h>
 #include "z80.h"
@@ -129,7 +130,7 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, ">", "M", "B", "C" "Z" },
     { NULL, NULL, NULL, NULL, "<", "N", "V", "X" },
     { NULL, NULL, NULL, NULL, "\x1b[D", NULL, NULL, NULL },
-    { NULL, NULL, NULL, NULL, NULL, "\x1b[A", NULL, "\x1b[F" },
+    { NULL, NULL, NULL, NULL, "\x1b", "\x1b[A", NULL, "\x1b[F" },
   },
 };
 
@@ -183,17 +184,6 @@ int mz700bank1 = 0;
 /* Keyboard support */
 char *(*keytbl)[10][8] = mz80keytbl;
 int mz80key_i8255pa;
-int mz80key_select;
-int mz80key_bit;
-enum keystate {
-  KEY_NONE,
-  KEY_PRESS,
-  KEY_SHIFTPRESS,
-  KEY_SHIFTPRESS1,
-  KEY_SHIFTPRESS2,
-};
-enum keystate mz80key_state = KEY_NONE;
-enum keystate mz80key_nextstate = KEY_NONE;
 
 char mz80_i8255pc = 0x00;
 
@@ -219,7 +209,12 @@ struct i8253ctr {
 
 int mz80count1_cycle = 0;
 
+char *mz80scankey = NULL;
+char *mz80autokey = NULL;
+
 char *mz80autocmd = NULL;
+char *mz80waitcmd = NULL;
+char *mz80waitcmd_p;
 
 /****************************************************************************/
 
@@ -245,6 +240,42 @@ static char *disasm(word address, char *device)
   count--;
 
   return res;
+}
+
+#define AUTOCMD_DELAY   40
+
+static int mz80keyscan(void)
+{
+  int i, j, k;
+  char *key = NULL;
+
+  if (mz80scankey) {
+    key = mz80scankey;
+    mz80scankey = NULL;
+  } else if (mz80autokey) {
+    static int delay = AUTOCMD_DELAY;
+    if (delay >= 0) {
+      delay--;
+      return 0;
+    }
+    delay = AUTOCMD_DELAY;
+    key = mz80autokey;
+    mz80autokey = NULL;
+  }
+  if (key == NULL)
+    return 0;
+
+  for (i = 0; i < 2; i++) {
+    for (j = 0; j < 10; j++) {
+      for (k = 0; k < 8; k++) {
+        if (keytbl[i][j][k] &&
+            (strcmp(keytbl[i][j][k], key) == 0)) {
+              return k + j * 8 + i * 128;
+        }
+      }
+    }
+  }
+  return 0;
 }
 
 byte z80_read(word address)
@@ -280,34 +311,69 @@ byte z80_read(word address)
     /* 8255 */
     data = 0xff;
     if (address == 0xe001) {
-      switch (mz80key_state) {
+      static int strobe;
+      static int bit;
+      static enum keystate {
+        KEY_NONE,
+        KEY_PRESS,
+        KEY_SHIFTPRESS,
+        KEY_SHIFTPRESS1,
+      } state = KEY_NONE;
+      static int scanned = 0;
+
+      if (state == KEY_NONE &&
+          (mz80key_i8255pa == 9 ||
+           (scanned & (1 << mz80key_i8255pa)) != 0)) {
+        int key = mz80keyscan();
+        if (key != 0) {
+          bit = 1 << (7 - (key % 8));
+          strobe = (key & 0x7f) / 8;
+          state = key > 0x80 ? KEY_SHIFTPRESS : KEY_PRESS;
+        }
+        scanned = 0;
+      }
+      scanned |= 1 << mz80key_i8255pa;
+
+#define KEYPRESS_DELAY 3
+
+      static int count = KEYPRESS_DELAY;
+      switch (state) {
         case KEY_NONE:
           break;
 
         case KEY_PRESS:
-          if (mz80key_select == mz80key_i8255pa)
-            data = ~mz80key_bit;
-          mz80key_nextstate = KEY_NONE;
+          if (strobe == mz80key_i8255pa) {
+            data = ~bit;
+            if (--count <= 0) {
+              state = KEY_NONE;
+              count = KEYPRESS_DELAY;
+            }
+          }
           break;
 
         case KEY_SHIFTPRESS:
-          if (mz80key_i8255pa == 8)
-            data = ~0x20;
-          mz80key_nextstate = KEY_SHIFTPRESS1;
+          if (mz80key_i8255pa == 8) {
+            data = ~0x01;     /* shift key */
+            state = KEY_SHIFTPRESS1;
+            count = KEYPRESS_DELAY;
+            scanned = 0;
+          }
           break;
         case KEY_SHIFTPRESS1:
-          if (mz80key_i8255pa == 8)
-            data = ~0x20;
-          if (mz80key_select == mz80key_i8255pa)
-            data &= ~mz80key_bit;
-          mz80key_nextstate = KEY_SHIFTPRESS2;
+          if (mz80key_i8255pa == 8) {
+            data = ~0x01;
+          }
+          if (strobe == mz80key_i8255pa) {
+            data &= ~bit;
+          }
+          if ((scanned & (1 << 8)) &&
+              (scanned & (1 << strobe))) {
+            if (--count <= 0) {
+              state = KEY_NONE;
+              count = KEYPRESS_DELAY;
+            }
+          }
           break;
-        case KEY_SHIFTPRESS2:
-          mz80key_nextstate = KEY_NONE;
-          break;
-      }
-      if (mz80key_i8255pa == 0) {
-        mz80key_state = mz80key_nextstate;
       }
     } else if (address == 0xe002) {
       static int x;
@@ -350,6 +416,7 @@ byte z80_read(word address)
   } else {
 
     /* Unknown device */
+    data = 0xff;
     if (verbose)
       device = "????";
 
@@ -389,6 +456,26 @@ void z80_write(word address, byte data)
     if (mz700) {
       data = mz80text[offset & 0x07ff];
       attr = mz80text[(offset & 0x07ff) + 0x0800];
+    }
+
+    if (mz80waitcmd && address < 0xd800) {
+      char ch;
+      p = mz80disphalf[data];
+      if (p && *p >= ' ' && *p < 0x80) {
+        ch = *p; 
+        if (toupper(*mz80waitcmd_p++) == ch) {
+          ch = *mz80waitcmd_p;
+          if (ch == '\0') {
+            mz80autocmd = NULL;
+            mz80waitcmd = NULL;
+          } else if (ch == '}') {
+            mz80autocmd = ++mz80waitcmd_p;
+            mz80waitcmd = NULL;
+          }
+        } else {
+          mz80waitcmd_p = mz80waitcmd;
+        }
+      }
     }
 
     if (halfwidth) {
@@ -545,64 +632,6 @@ void z80_out(word address, byte data)
 
 /****************************************************************************/
 
-static int mz80keyscan(void)
-{
-  int i, j, k;
-  int ch;
-  static char key[10];
-  static char *p = NULL;
-
-  if (mz80key_state != KEY_NONE)
-    return 0;
-
-  ch = getchar();
-  if (ch < 0) {
-    if (p == NULL)
-      return 0;
-  } else {
-    if (ch == '\x11') {         /* ^Q : exit */
-      return -1;
-    } else if (ch == '\x01') {  /* ^A : switch verbose */
-      verbose = 1 - verbose;
-      return 0;
-    } else if (ch == '\x17') {  /* ^W : wait */
-      nowait = 1 - nowait;
-      return 0;
-    } else if (ch == '\x1b') {  /* ESC sequence start */
-      p = key;
-      *p++ = ch;
-      *p = '\0';
-      return 0;
-    } else {
-      if (p == NULL) {
-        key[0] = ch;
-        key[1] = '\0';
-      } else {
-        *p++ = ch;
-        *p = '\0';
-        if (!(ch >= 'A' && ch <= 'Z'))
-          return 0;
-      }
-    }
-  }
-  p = NULL;
-
-  for (i = 0; i < 2; i++) {
-    for (j = 0; j < 10; j++) {
-      for (k = 0; k < 8; k++) {
-        if (keytbl[i][j][k] &&
-            (strcmp(keytbl[i][j][k], key) == 0)) {
-          mz80key_select = j;
-          mz80key_bit = 1 << (7 - k);
-          mz80key_nextstate = i ? KEY_SHIFTPRESS : KEY_PRESS;
-          return 0;
-        }
-      }
-    }
-  }
-  return 0;
-}
-
 #define CPU_2MHZ      (2 * 1000 * 1000)
 #define VSYNC_LOW     (CPU_2MHZ * 230 / 260 / 60)
 #define VSYNC_HIGH    (CPU_2MHZ *  30 / 260 / 60)
@@ -616,9 +645,9 @@ static void mz80main(void)
 {
   struct termios oldt, newt;
   int oldf;
-  int x;
   struct timespec oldts, newts, wait;
   long cycles;
+  int keyscan = 1;
 
   tcgetattr(STDIN_FILENO, &oldt);
   newt = oldt;
@@ -636,16 +665,59 @@ static void mz80main(void)
   z80_reset(&cpu);
   clock_gettime(CLOCK_MONOTONIC, &oldts);
 
-  x = 1000;
   do {
-    if (!nowait || (--x <= 0)) {
-      if (mz80keyscan() < 0) {
-        break;
+    if (!mz80waitcmd && !mz80autokey && mz80autocmd) {
+      char ch;
+      do {
+        ch = *mz80autocmd++;
+        if (ch == '\0') {
+          mz80autocmd = NULL;
+          break;
+        }
+      } while (ch < ' ');
+      if (ch == '|') {
+        ch = '\r';
+      } else if (ch == '{') {
+        ch = '\0';
+        if (*mz80autocmd) {
+          mz80waitcmd = mz80autocmd;
+          mz80waitcmd_p = mz80waitcmd;
+        }
       }
-      x = 1000;
+      if (ch) {
+        static char key[2];
+        key[0] = ch;
+        key[1] = '\0';
+        mz80autokey = key;
+      }
     }
 
-    if (cpu.pc == 0x003e) {
+    if (keyscan) {
+      static char key[10];
+      static int delay = 50;
+      int len = -1;
+
+      delay = nowait ? (delay - 1) : 0;
+      if (delay <= 0) {
+        len = read(fileno(stdin), key, sizeof(key));
+        delay = 50;
+      }
+      if (len >= 0) {
+        key[len] = '\0';
+        mz80scankey = key;
+        if (strcmp(key, "\x11") == 0) {       /* ^Q : exit */
+          break;
+        } else if (strcmp(key, "\x01") == 0) {/* ^A : switch verbose */
+          verbose = 1 - verbose;
+          mz80scankey = NULL;
+        } else if (strcmp(key, "\x17") == 0) {/* ^W : wait */
+          nowait = 1 - nowait;
+          mz80scankey = NULL;
+        }
+      }
+    }
+
+    if (!mz700 && cpu.pc == 0x003e) {
       printf("\a");     /* bell */
       fflush(stdout);
     }
@@ -670,6 +742,7 @@ static void mz80main(void)
       if (mz80vsync_timer >= VSYNC_HIGH) {
         mz80vsync_timer -= VSYNC_HIGH;
         mz80vsync_stat = 0;
+        keyscan = 1;
       }
     } else {
       if (mz80vsync_timer >= VSYNC_LOW) {
@@ -765,6 +838,7 @@ int main(int argc, char **argv)
   int i;
   int help = 0;
   int romload = 0;
+  int autocmdlen = 0;
 
   for (i = 1; i < argc; i++) {
     if (strcmp(argv[i], "-r") == 0) {
@@ -778,6 +852,41 @@ int main(int argc, char **argv)
         fread(mz80rom, sizeof(mz80rom), 1, fp);
         fclose(fp);
         romload = 1;
+        i++;
+      } else {
+        help = 1;
+      }
+    } else if (strcmp(argv[i], "-a") == 0) {
+      mz80autocmd = realloc(mz80autocmd,
+                            autocmdlen + strlen("load|") + 1);
+      strcat(mz80autocmd, "load|");
+      autocmdlen = strlen(mz80autocmd);
+    } else if (strcmp(argv[i], "-c") == 0) {
+      if (i + 1 < argc) {
+        mz80autocmd = realloc(mz80autocmd,
+                              autocmdlen + strlen(argv[i + 1]) + 1);
+        strcat(mz80autocmd, argv[i + 1]);
+        autocmdlen = strlen(mz80autocmd);
+        i++;
+      } else {
+        help = 1;
+      }
+    } else if (strcmp(argv[i], "-C") == 0) {
+      if (i + 1 < argc) {
+        fp = fopen(argv[i + 1], "rb");
+        if (fp == NULL) {
+          printf("file not found\n");
+          help = 1;
+          break;
+        }
+        fseek(fp, 0, SEEK_END);
+        int len = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+        mz80autocmd = realloc(mz80autocmd, autocmdlen + len + 1);
+        fread(&mz80autocmd[autocmdlen], len, 1, fp);
+        mz80autocmd[autocmdlen + len] = '\0';
+        autocmdlen = strlen(mz80autocmd);
+        fclose(fp);
         i++;
       } else {
         help = 1;
@@ -804,7 +913,7 @@ int main(int argc, char **argv)
   }
 
   if (help) {
-    printf("Usage: ttymz80 [-n][-w][-H][-r <ROM image>] [<mzt/mzf file>...]\n");
+    printf("Usage: ttymz80 [-a][-n][-w][-H][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mzt/mzf file>...]\n");
     return 1;
   }
 
