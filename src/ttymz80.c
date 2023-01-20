@@ -39,7 +39,7 @@ char *mz80disp[256] = {
   "サ", "ン", "ツ", "ロ", "ケ", "「", "ァ", "ャ",
   "ワ", "ヌ", "フ", "ア", "ウ", "エ", "オ", "ヤ",   /* a0 */
   "ユ", "ヨ", "ホ", "ヘ", "レ", "メ", "ル", "ネ",
-  "ム", "」", "ィ", "ュ", "ヲ",  "、", "ゥ", "ョ",   /* b0 */
+  "ム", "」", "ィ", "ュ", "ヲ", "、", "ゥ", "ョ",   /* b0 */
   "゜", ". ", "ェ", "ッ", "゛", "。", "ォ", "ー",
   "⭳ ", "\1↓", "\1↑", "\1→", "\1←", "\1Ｈ", "\1Ｃ", "🛸", /* c0 */
   "🚗", "🚘", "⮙ ", "⮘ ", "⮚ ", "⮛ ", "😐", "😃",
@@ -49,6 +49,41 @@ char *mz80disp[256] = {
   "|ᐊ", "|↘", "|↙", ">-", "⊣⊢", "⍊ ", "≀ ", "░░",
   "　", "▀ ", " ▀", "▀▀", "▄ ", "█ ", "▄▀", "█▀",    /* f0 */
   " ▄", "▀▄", " █", "▀█", "▄▄", "█▄", "▄█", "██",
+};
+
+char *mz700disp[256] = {
+  NULL, "ａ", "ｂ", "ｃ", "ｄ", "ｅ", "ｆ", "ｇ",   /* 00 */
+  "ｈ", "ｉ", "ｊ", "ｋ", "ｌ", "ｍ", "ｎ", "ｏ",
+  "ｐ", "ｑ", "ｒ", "ｓ", "ｔ", "ｕ", "ｖ", "ｗ",   /* 10 */
+  "ｘ", "ｙ", "ｚ", NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 20 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 30 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 40 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 50 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 60 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* 70 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, "ち", "こ", "そ", "し", "い", "は", "き",   /* 80 */
+  "く", "に", "ま", "の", "り", "も", "み", "ら",
+  "せ", "た", "す", "と", "か", "な", "ひ", "て",   /* 90 */
+  "さ", "ん", "つ", "ろ", "け", "「", "ぁ", "ゃ",
+  "わ", "ぬ", "ふ", "あ", "う", "え", "お", "や",   /* a0 */
+  "ゆ", "よ", "ほ", "へ", "れ", "め", "る", "ね",
+  "む", NULL, "ぃ", "ゅ", "を", NULL, "ぅ", "ょ",   /* b0 */
+  NULL, NULL, "ぇ", "っ", NULL, NULL, "ぉ", NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* c0 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* d0 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* e0 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, /* f0 */
+  NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 };
 
 char *mz80disphalf[256] = {
@@ -355,8 +390,19 @@ void z80_write(word address, byte data)
       data = mz80text[offset & 0x07ff];
       attr = mz80text[(offset & 0x07ff) + 0x0800];
     }
-    p = halfwidth ? mz80disphalf[data] : mz80disp[data];
-    p = p ? p : (halfwidth ? " " : "  ");
+
+    if (halfwidth) {
+      p = mz80disphalf[data];
+      p = p ? p : " ";
+    } else {
+      if (mz700 && (attr & 0x80)) {
+        p = mz700disp[data];
+        p = p ? p : mz80disp[data];
+      } else {
+        p = mz80disp[data];
+      }
+      p = p ? p : "  ";
+    }
     if (*p == '\1') {
       p++;
       rev = 1;
@@ -766,7 +812,7 @@ int main(int argc, char **argv)
     if (mz700) {
       extern char mz_newmon7[];
       memcpy(mz80rom, mz_newmon7, sizeof(mz80rom));
-      memset(&mz80text[0x800], 0x71, 0x800);
+      memset(&mz80text[0x800], 0x70, 0x800);
     } else {
       extern char mz_newmon[];
       memcpy(mz80rom, mz_newmon, sizeof(mz80rom));
