@@ -604,6 +604,7 @@ void z80_write(word address, byte data)
 
 byte z80_in(word address)
 {
+  address &= 0xff;
   if (verbose)
     printf("z80_in: %04x\n", address);
   return 0;
@@ -613,6 +614,7 @@ byte z80_in(word address)
 
 void z80_out(word address, byte data)
 {
+  address &= 0xff;
   if (address == 0xe0) {
     mz700bank0 = 1;
   } else if (address == 0xe1) {
@@ -698,6 +700,7 @@ static void mz80main(void)
       static char key[10];
       static int delay = 50;
       int len = -1;
+      keyscan = 0;
 
       delay = nowait ? (delay - 1) : 0;
       if (delay <= 0) {
