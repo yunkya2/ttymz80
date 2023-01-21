@@ -759,27 +759,28 @@ static void mz80main(void)
     mz80count1_cycle += cpu.cycles;
     if (mz80count1_cycle >= (CPU_2MHZ / COUNTER1_HZ)) {
       mz80count1_cycle -= CPU_2MHZ / COUNTER1_HZ;
-
-      int i;
       struct i8253ctr *p;
-      for (i = 0; i < 3; i++) {
-        p = &mz80i8253ctr[i];
-        if (p->start && !p->enable) {
+      p = &mz80i8253ctr[1];       /* 8253 counter 1 */
+      if (!p->enable) {
+        if (p->start) {
           p->start = 0;
           p->enable = 1;
           p->count = p->reload;
         }
-      }
-      
-      p = &mz80i8253ctr[1];       /* 8253 counter 1 */
-      if (p->enable) {
-        if ((--p->count <= 0) ||
-            (p->count <= 1 && p->mode == 2)) {
+      } else {
+        if (--p->count == 0) {
           p->count = p->reload;
+        }
+        if (p->count == 1) {
           p++;                    /* 8253 counter 2 */
-          if (p->enable) {
-            if ((--p->count <= 0) ||
-                (p->count <= 1 && p->mode == 2)) {
+          if (!p->enable) {
+            if (p->start) {
+              p->start = 0;
+              p->enable = 1;
+              p->count = p->reload;
+            }
+          } else {
+            if (--p->count == 0) {
               cpu.intr = 1;
             }
           }
