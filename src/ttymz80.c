@@ -172,14 +172,16 @@ int mz700 = 0;
 /* CPU context */
 z80 cpu;
 
-unsigned long long total_cycles;
+int total_cycles;
+int cpu_clock = 2 * 1000 * 1000;
+int count1_clock = 31250;
 
 /* Memory */
 byte mz80rom[0x1000];
 byte mz80ram[0x10000];
 byte mz80text[0x1000];
-int mz700bank0 = 0;
-int mz700bank1 = 0;
+int mz700bank0;
+int mz700bank1;
 
 /* Keyboard support */
 char *(*keytbl)[10][8] = mz80keytbl;
@@ -189,10 +191,11 @@ char mz80_i8255pc = 0x00;
 
 int mz80cur_stat;
 int mz80cur_timer;
-int mz80vsync_stat = 0;
-int mz80vsync_timer = 0;
-int mz80tempo_stat = 0;
-int mz80tempo_timer = 0;
+int mz80vsync_stat;
+int mz80vsync_timer;
+int mz80tempo_stat;
+int mz80tempo_timer;
+int mz80count1_timer;
 
 struct i8253ctr {
   int start;
@@ -206,8 +209,6 @@ struct i8253ctr {
   int hilo;
   int loval;
 } mz80i8253ctr[3];
-
-int mz80count1_cycle = 0;
 
 char *mz80scankey = NULL;
 char *mz80autokey = NULL;
@@ -645,14 +646,12 @@ void z80_out(word address, byte data)
 
 /****************************************************************************/
 
-#define CPU_2MHZ      (2 * 1000 * 1000)
-#define VSYNC_LOW     (CPU_2MHZ * 230 / 260 / 60)
-#define VSYNC_HIGH    (CPU_2MHZ *  30 / 260 / 60)
+#define VSYNC_LOW     (cpu_clock * 230 / 260 / 60)
+#define VSYNC_HIGH    (cpu_clock *  30 / 260 / 60)
 #define CURSOR_HZ     (3)
 #define TEMPO_HZ      (100)
 #define SYNCHZ        (1000)
 #define NANOSEC       (1000 * 1000 * 1000)
-#define COUNTER1_HZ   31250
 
 static void mz80main(void)
 {
@@ -742,14 +741,14 @@ static void mz80main(void)
     total_cycles += cpu.cycles;
 
     mz80cur_timer += cpu.cycles;
-    if (mz80cur_timer >= CPU_2MHZ / CURSOR_HZ) {
-      mz80cur_timer -= CPU_2MHZ / CURSOR_HZ;
+    if (mz80cur_timer >= cpu_clock / CURSOR_HZ) {
+      mz80cur_timer -= cpu_clock / CURSOR_HZ;
       mz80cur_stat = 1 - mz80cur_stat;
     }
 
     mz80tempo_timer += cpu.cycles;
-    if (mz80tempo_timer >= CPU_2MHZ / TEMPO_HZ) {
-      mz80tempo_timer -= CPU_2MHZ / TEMPO_HZ;
+    if (mz80tempo_timer >= cpu_clock / TEMPO_HZ) {
+      mz80tempo_timer -= cpu_clock / TEMPO_HZ;
       mz80tempo_stat = 1 - mz80tempo_stat;
     }
 
@@ -768,9 +767,9 @@ static void mz80main(void)
       }
     }
 
-    mz80count1_cycle += cpu.cycles;
-    if (mz80count1_cycle >= (CPU_2MHZ / COUNTER1_HZ)) {
-      mz80count1_cycle -= CPU_2MHZ / COUNTER1_HZ;
+    mz80count1_timer += cpu.cycles;
+    if (mz80count1_timer >= (cpu_clock / count1_clock)) {
+      mz80count1_timer -= cpu_clock / count1_clock;
       struct i8253ctr *p;
       p = &mz80i8253ctr[1];       /* 8253 counter 1 */
       if (!p->enable) {
@@ -809,13 +808,13 @@ static void mz80main(void)
 
     if (!nowait) {
       cycles += cpu.cycles;
-      if (cycles > (CPU_2MHZ / SYNCHZ)) {
+      if (cycles > (cpu_clock / SYNCHZ)) {
         nanosleep(&wait, NULL);
         clock_gettime(CLOCK_MONOTONIC, &newts);
         long nsec2;
         nsec2 = (newts.tv_sec - oldts.tv_sec) * NANOSEC;
         nsec2 += newts.tv_nsec - oldts.tv_nsec;
-        cycles -= nsec2 / (NANOSEC / CPU_2MHZ);
+        cycles -= nsec2 / (NANOSEC / cpu_clock);
         oldts = newts;
       } 
     }
@@ -918,6 +917,8 @@ int main(int argc, char **argv)
     } else if (strcmp(argv[i], "-7") == 0) {
       mz700 = 1;
       keytbl = mz700keytbl;
+      cpu_clock = 3579545;
+      count1_clock = 15699;
     } else {
       struct stat statbuf;
       if (stat(argv[i], &statbuf) < 0) {
