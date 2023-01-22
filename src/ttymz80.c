@@ -301,8 +301,8 @@ byte z80_read(word address)
     int offset = mz700 ? address & 0x0fff : address & 0x03ff;
     data = mz80text[offset];
     if (verbose) {
-      int x = offset % 40;
-      int y = offset / 40;
+      int x = (offset & 0x03ff) % 40;
+      int y = (offset & 0x03ff) / 40;
       printf("VRAM R %04x (%2d,%2d) %02x\n", offset, x, y, data);
     }
 
@@ -450,17 +450,18 @@ void z80_write(word address, byte data)
     int offset = mz700 ? address & 0x0fff : address & 0x03ff;
     char *p;
     int rev = 0;
-    int attr = 0;
+    byte attr;
+    byte disp = data;
     mz80text[offset] = data;
 
     if (mz700) {
-      data = mz80text[offset & 0x07ff];
+      disp = mz80text[offset & 0x07ff];
       attr = mz80text[(offset & 0x07ff) + 0x0800];
     }
 
     if (mz80waitcmd && address < 0xd800) {
       char ch;
-      p = mz80disphalf[data];
+      p = mz80disphalf[disp];
       if (p && *p >= ' ' && *p < 0x80) {
         ch = *p; 
         if (toupper(*mz80waitcmd_p++) == ch) {
@@ -479,14 +480,14 @@ void z80_write(word address, byte data)
     }
 
     if (halfwidth) {
-      p = mz80disphalf[data];
+      p = mz80disphalf[disp];
       p = p ? p : " ";
     } else {
       if (mz700 && (attr & 0x80)) {
-        p = mz700disp[data];
-        p = p ? p : mz80disp[data];
+        p = mz700disp[disp];
+        p = p ? p : mz80disp[disp];
       } else {
-        p = mz80disp[data];
+        p = mz80disp[disp];
       }
       p = p ? p : "  ";
     }
@@ -508,10 +509,10 @@ void z80_write(word address, byte data)
                rev ? "\x1b[7m" : "",
                p,
                rev ? "\x1b[27m" : "");
-        fflush(stdout);
       }
     } else {
-      printf("VRAM W (%2d,%2d) %02x %s\n", x, y, data, p);
+      printf("VRAM W %04x (%2d,%2d) %02x %s\n",
+             offset, x, y, data, offset >= 0x0800 ? "  " : p);
     }
 
   } else if (address >= 0xe000 && address <= 0xe003) {
@@ -748,6 +749,7 @@ static void mz80main(void)
         mz80vsync_timer -= VSYNC_HIGH;
         mz80vsync_stat = 0;
         keyscan = 1;
+        fflush(stdout);
       }
     } else {
       if (mz80vsync_timer >= VSYNC_LOW) {
