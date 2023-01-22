@@ -932,7 +932,7 @@ int main(int argc, char **argv)
   }
 
   if (help) {
-    printf("Usage: ttymz80 [-a][-n][-w][-H][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mzt/mzf file>...]\n");
+    printf("Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mzt/mzf file>...]\n");
     return 1;
   }
 
