@@ -308,6 +308,8 @@ byte z80_read(word address)
 
   } else if (address >= 0xe000 && address <= 0xe003) {
 
+#define KEYPRESS_DELAY 3
+
     /* 8255 */
     data = 0xff;
     if (address == 0xe001) {
@@ -320,6 +322,8 @@ byte z80_read(word address)
         KEY_SHIFTPRESS1,
       } state = KEY_NONE;
       static int scanned = 0;
+      static int count;
+      static int presstime;
 
       if (state == KEY_NONE &&
           (mz80key_i8255pa == 9 ||
@@ -329,14 +333,13 @@ byte z80_read(word address)
           bit = 1 << (7 - (key % 8));
           strobe = (key & 0x7f) / 8;
           state = key > 0x80 ? KEY_SHIFTPRESS : KEY_PRESS;
+          count = KEYPRESS_DELAY;
+          presstime = total_cycles;
         }
         scanned = 0;
       }
       scanned |= 1 << mz80key_i8255pa;
 
-#define KEYPRESS_DELAY 3
-
-      static int count = KEYPRESS_DELAY;
       switch (state) {
         case KEY_NONE:
           break;
@@ -344,9 +347,14 @@ byte z80_read(word address)
         case KEY_PRESS:
           if (strobe == mz80key_i8255pa) {
             data = ~bit;
-            if (--count <= 0) {
+            if (--count <= 0 ||
+                total_cycles - presstime > cpu_clock) {
+              if (total_cycles - presstime > cpu_clock) {
+                data = 0xff;
+              }
               state = KEY_NONE;
               count = KEYPRESS_DELAY;
+              presstime = total_cycles;
             }
           }
           break;
@@ -357,6 +365,7 @@ byte z80_read(word address)
             state = KEY_SHIFTPRESS1;
             count = KEYPRESS_DELAY;
             scanned = 0;
+            presstime = total_cycles;
           }
           break;
         case KEY_SHIFTPRESS1:
@@ -371,6 +380,7 @@ byte z80_read(word address)
             if (--count <= 0) {
               state = KEY_NONE;
               count = KEYPRESS_DELAY;
+              presstime = total_cycles;
             }
           }
           break;
