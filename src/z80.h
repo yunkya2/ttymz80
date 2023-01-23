@@ -1,5 +1,6 @@
-/* Z80 emulator header file           */
-/* AKIKAWA, Hisashi 2018.5.17 version */
+/* Z80 emulator header file                              */
+/*  by AKIKAWA, Hisashi 2015-2023                        */
+/* This software is released under 2-clause BSD license. */
 
 #ifndef Z80_H_INCLUDED
 #define Z80_H_INCLUDED
@@ -15,8 +16,7 @@ typedef struct {
   byte ixh, ixl, iyh, iyl;
   byte i;
   byte r;
-  word sp, pc;
-  byte internal;
+  word sp, pc, wz;
   int iff1, iff2;
   int im;
   int ei;

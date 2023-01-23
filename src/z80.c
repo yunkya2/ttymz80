@@ -1,5 +1,6 @@
-/* Z80 emulator                       */
-/* AKIKAWA, Hisashi 2018.5.17 version */
+/* Z80 emulator                                          */
+/*  by AKIKAWA, Hisashi 2015-2023                        */
+/* This software is released under 2-clause BSD license. */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,17 +13,6 @@
 #define HL (pcpu->l + (pcpu->h << 8))
 #define IX (pcpu->ixl + (pcpu->ixh << 8))
 #define IY (pcpu->iyl + (pcpu->iyh << 8))
-
-#define FLAGS(var8)		\
-  ((var8 & SF)			\
-   | (var8 ? 0 : ZF)		\
-   | (var8 & YF)		\
-   | 0				\
-   | (var8 & XF)		\
-   | parity_table[var8]		\
-   | 0				\
-   | 0				\
-   )
 
 enum {
   SF = 0x80, ZF = 0x40, YF = 0x20, HF = 0x10,
@@ -48,6 +38,7 @@ const byte parity_table[] = {
   PF, 0 , 0 , PF, 0 , PF, PF, 0 , 0 , PF, PF, 0 , PF, 0 , 0 , PF,
 };
 
+/* S,Z,Y,X,P flags */
 const byte newflags[] = {
   0x44, 0x00, 0x00, 0x04, 0x00, 0x04, 0x04, 0x00,
   0x08, 0x0c, 0x0c, 0x08, 0x0c, 0x08, 0x08, 0x0c,
@@ -549,45 +540,45 @@ const char *mnemonics_dd[0x100] = {
 	"JR @h",	"ADD I%,DE",	"LD A,(DE)",	"DEC DE",
 	"INC E",	"DEC E",	"LD E,*h",	"RRA",
 	"JR NZ,@h",	"LD I%,#h",	"LD (#h),I%",	"INC I%",
-	"INC I%h",	"DEC I%h",	"LD I%h,*h",	"DAA",
+	"INC I%H",	"DEC I%H",	"LD I%H,*h",	"DAA",
 	"JR Z,@h",	"ADD I%,I%",	"LD I%,(#h)",	"DEC I%",
-	"INC I%l",	"DEC I%l",	"LD I%l,*h",	"CPL",
+	"INC I%L",	"DEC I%L",	"LD I%L,*h",	"CPL",
 	"JR NC,@h",	"LD SP,#h",	"LD (#h),A",	"INC SP",
 	"INC (I%^h)",	"DEC (I%^h)",	"LD (I%^h),*h",	"SCF",
 	"JR C,@h",	"ADD I%,SP",	"LD A,(#h)",	"DEC SP",
 	"INC A",	"DEC A",	"LD A,*h",	"CCF",
 	"LD B,B",	"LD B,C",	"LD B,D",	"LD B,E",
-	"LD B,I%h",	"LD B,I%l",	"LD B,(I%^h)",	"LD B,A",
+	"LD B,I%H",	"LD B,I%L",	"LD B,(I%^h)",	"LD B,A",
 	"LD C,B",	"LD C,C",	"LD C,D",	"LD C,E",
-	"LD C,I%h",	"LD C,I%l",	"LD C,(I%^h)",	"LD C,A",
+	"LD C,I%H",	"LD C,I%L",	"LD C,(I%^h)",	"LD C,A",
 	"LD D,B",	"LD D,C",	"LD D,D",	"LD D,E",
-	"LD D,I%h",	"LD D,I%l",	"LD D,(I%^h)",	"LD D,A",
+	"LD D,I%H",	"LD D,I%L",	"LD D,(I%^h)",	"LD D,A",
 	"LD E,B",	"LD E,C",	"LD E,D",	"LD E,E",
-	"LD E,I%h",	"LD E,I%l",	"LD E,(I%^h)",	"LD E,A",
-	"LD I%h,B",	"LD I%h,C",	"LD I%h,D",	"LD I%h,E",
-	"LD I%h,I%h",	"LD I%h,I%l",	"LD H,(I%^h)",	"LD I%h,A",
-	"LD I%l,B",	"LD I%l,C",	"LD I%l,D",	"LD I%l,E",
-	"LD I%l,I%h",	"LD I%l,I%l",	"LD L,(I%^h)",	"LD I%l,A",
+	"LD E,I%H",	"LD E,I%L",	"LD E,(I%^h)",	"LD E,A",
+	"LD I%H,B",	"LD I%H,C",	"LD I%H,D",	"LD I%H,E",
+	"LD I%H,I%H",	"LD I%H,I%L",	"LD H,(I%^h)",	"LD I%H,A",
+	"LD I%L,B",	"LD I%L,C",	"LD I%L,D",	"LD I%L,E",
+	"LD I%L,I%H",	"LD I%L,I%L",	"LD L,(I%^h)",	"LD I%L,A",
 	"LD (I%^h),B",	"LD (I%^h),C",	"LD (I%^h),D",	"LD (I%^h),E",
 	"LD (I%^h),H",	"LD (I%^h),L",	"HALT",		"LD (I%^h),A",
 	"LD A,B",	"LD A,C",	"LD A,D",	"LD A,E",
-	"LD A,I%h",	"LD A,I%l",	"LD A,(I%^h)",	"LD A,A",
+	"LD A,I%H",	"LD A,I%L",	"LD A,(I%^h)",	"LD A,A",
 	"ADD A,B",	"ADD A,C",	"ADD A,D",	"ADD A,E",
-	"ADD A,I%h",	"ADD A,I%l",	"ADD A,(I%^h)",	"ADD A,A",
+	"ADD A,I%H",	"ADD A,I%L",	"ADD A,(I%^h)",	"ADD A,A",
 	"ADC A,B",	"ADC A,C",	"ADC A,D",	"ADC A,E",
-	"ADC A,I%h",	"ADC A,I%l",	"ADC A,(I%^h)",	"ADC A,A",
+	"ADC A,I%H",	"ADC A,I%L",	"ADC A,(I%^h)",	"ADC A,A",
 	"SUB B",	"SUB C",	"SUB D",	"SUB E",
-	"SUB I%h",	"SUB I%l",	"SUB (I%^h)",	"SUB A",
+	"SUB I%H",	"SUB I%L",	"SUB (I%^h)",	"SUB A",
 	"SBC A,B",	"SBC A,C",	"SBC A,D",	"SBC A,E",
-	"SBC A,I%h",	"SBC A,I%l",	"SBC A,(I%^h)",	"SBC A,A",
+	"SBC A,I%H",	"SBC A,I%L",	"SBC A,(I%^h)",	"SBC A,A",
 	"AND B",	"AND C",	"AND D",	"AND E",
-	"AND I%h",	"AND I%l",	"AND (I%^h)",	"AND A",
+	"AND I%H",	"AND I%L",	"AND (I%^h)",	"AND A",
 	"XOR B",	"XOR C",	"XOR D",	"XOR E",
-	"XOR I%h",	"XOR I%l",	"XOR (I%^h)",	"XOR A",
+	"XOR I%H",	"XOR I%L",	"XOR (I%^h)",	"XOR A",
 	"OR B",		"OR C",		"OR D",		"OR E",
-	"OR I%h",	"OR I%l",	"OR (I%^h)",	"OR A",
+	"OR I%H",	"OR I%L",	"OR (I%^h)",	"OR A",
 	"CP B",		"CP C",		"CP D",		"CP E",
-	"CP I%h",	"CP I%l",	"CP (I%^h)",	"CP A",
+	"CP I%H",	"CP I%L",	"CP (I%^h)",	"CP A",
 	"RET NZ",	"POP BC",	"JP NZ,#h",	"JP #h",
 	"CALL NZ,#h",	"PUSH BC",	"ADD A,#h",	"RST 00h",
 	"RET Z",	"RET",		"JP Z,#h",	"CB prefix",
@@ -717,8 +708,9 @@ static inline void block_copy(z80 *pcpu);
 static inline void block_search(z80 *pcpu);
 static inline void cpi(z80 *pcpu);
 static inline void cpd(z80 *pcpu);
+static inline void cpir(z80 *pcpu, int repeat);
+static inline void cpdr(z80 *pcpu, int repeat);
 static inline void repbc(z80 *pcpu);
-static inline void repcp(z80 *pcpu);
 static inline void repb(z80 *pcpu);
 static inline void ini(z80 *pcpu);
 static inline void ind(z80 *pcpu);
@@ -739,7 +731,7 @@ static inline void bitm(z80 *pcpu, int n);
 static inline byte resm(z80 *pcpu, int n, word address, int offset);
 static inline byte setm(z80 *pcpu, int n, word address, int offset);
 static inline void bitixy(z80 *pcpu, int n, word address);
-static inline void intmode2(z80 *pcpu, word address);
+static inline void intmode2(z80 *pcpu, byte vector);
 
 /*
  * initialize CPU
@@ -793,7 +785,9 @@ void z80_main(z80 *pcpu)
       pcpu->nmi = 0;
     }
     return;
-  } else if (pcpu->intmode2) {
+  }
+
+  if (pcpu->intmode2) {
     pcpu->cycles += tstates_intmode2[pcpu->mcycle];
     pcpu->mcycle++;
     intmode2(pcpu, 0);
@@ -838,6 +832,7 @@ void z80_main(z80 *pcpu)
   }
 }
 
+
 /*
  * nonmaskable interrupt
  */
@@ -858,6 +853,7 @@ void z80_nmi(z80 *pcpu)
   pcpu->mcycle = 1;
 }
 
+
 /*
  * check if interrupt accetable
  */
@@ -870,13 +866,12 @@ int z80_intack(z80 *pcpu)
   }
 }
 
+
 /*
  * maskable interrupt
  */
 void z80_int(z80 *pcpu, byte vector)
 {
-  word address;
-
   if (pcpu->halt) {
     pcpu->halt = 0;
     pcpu->pc++;
@@ -899,15 +894,15 @@ void z80_int(z80 *pcpu, byte vector)
     pcpu->cycles += tstates[pcpu->op1][0];
     exec_code(pcpu);
     break;
-      
+
   case 2:
     pcpu->intmode2 = 1;
-    address = vector + (pcpu->i << 8);
     pcpu->cycles += tstates_intmode2[0];
-    intmode2(pcpu, address);
+    intmode2(pcpu, vector);
     break;
   }
 }
+
 
 /*
  * disassemble
@@ -971,6 +966,18 @@ int z80_dasm(char *disasm, word address)
     break;
   }
 
+  if (pos = strchr(disasm, '^')) {
+    memmove(pos + 4, pos + 2, strlen(pos) - 1);
+    i = z80_read(++address);
+    if (i < 0x80) {
+      sprintf(pos, "+%02X", i);
+    } else {
+      sprintf(pos, "-%02X", 0x100 - i);
+    }
+    *(pos + 3) = 'h';
+    bytes++;
+  }
+
   if (pos = strchr(disasm, '*')) {
     memmove(pos + 3, pos + 2, strlen(pos) - 1);
     sprintf(pos, "%02X", z80_read(++address));
@@ -986,18 +993,6 @@ int z80_dasm(char *disasm, word address)
     bytes++;
   }
 
-  if (pos = strchr(disasm, '^')) {
-    memmove(pos + 4, pos + 2, strlen(pos) - 1);
-    i = z80_read(++address);
-    if (i < 0x80) {
-      sprintf(pos, "+%02X", i);
-    } else {
-      sprintf(pos, "-%02X", 0x100 - i);
-    }
-    *(pos + 3) = 'h';
-    bytes++;
-  }
-
   if (pos = strchr(disasm, '#')) {
     memmove(pos + 5, pos + 2, strlen(pos) - 1);
     sprintf(pos, "%02X%02X",
@@ -1008,6 +1003,7 @@ int z80_dasm(char *disasm, word address)
   }
   return bytes;
 }
+
 
 /*
  * assemble
@@ -1026,7 +1022,7 @@ int z80_asm(char *input, byte *data, word address)
   }
   memmove(input, &input[i], j);
   input[j] = '\0';
-	     
+
   while (pos = strstr(input, ", ")) {
     memmove(pos + 1, pos + 2, strlen(pos + 1));
   }
@@ -1038,7 +1034,7 @@ int z80_asm(char *input, byte *data, word address)
     input[i] = toupper((int)input[i]);
   }
 
-  
+
   if (bytes = search_code(mnemonics, 0, input, data, address)) {
     return bytes;
   }
@@ -1084,6 +1080,7 @@ int z80_asm(char *input, byte *data, word address)
   return 0;
 }
 
+
 /*
  * fetch op code
  */
@@ -1098,13 +1095,13 @@ byte fetch(z80 *pcpu)
   return op;
 }
 
+
 /*
  * execute
  */
 void exec_code(z80 *pcpu)
 {
   static byte tmp8 = 0;
-  static word tmp16;
 
   pcpu->cycles += tstates[pcpu->op1][pcpu->mcycle];
   pcpu->mcycle++;
@@ -1148,33 +1145,44 @@ void exec_code(z80 *pcpu)
   case 0x02:						/* ld (bc),a */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	z80_write(BC, pcpu->a);			break;
+    case 2:
+      pcpu->wz = BC;
+      z80_write(pcpu->wz++, pcpu->a);
+      pcpu->wz = (pcpu->wz & 0xff) + (pcpu->a << 8);
+      break;
     }
     break;
 
   case 0x12:						/* ld (de),a */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	z80_write(DE, pcpu->a);			break;
+    case 2:
+      pcpu->wz = DE;
+      z80_write(pcpu->wz++, pcpu->a);
+      pcpu->wz = (pcpu->wz & 0xff) + (pcpu->a << 8);
+      break;
     }
     break;
 
   case 0x22:						/* ld (nn),hl */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	tmp16 = z80_read(pcpu->pc++);		break;
-    case 3:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-    case 4:	z80_write(tmp16,     pcpu->l);		break;
-    case 5:	z80_write(tmp16 + 1, pcpu->h);		break;
+    case 2:	pcpu->wz = z80_read(pcpu->pc++);	break;
+    case 3:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+    case 4:	z80_write(pcpu->wz++, pcpu->l);		break;
+    case 5:	z80_write(pcpu->wz  , pcpu->h);		break;
     }
     break;
 
   case 0x32:						/* ld (nn),a */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	tmp16 = z80_read(pcpu->pc++);		break;
-    case 3:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-    case 4:	z80_write(tmp16, pcpu->a);		break;
+    case 2:	pcpu->wz = z80_read(pcpu->pc++);	break;
+    case 3:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+    case 4:
+      z80_write(pcpu->wz++, pcpu->a);
+      pcpu->wz = (pcpu->wz & 0xff) + (pcpu->a << 8);
+      break;
     }
     break;
 
@@ -1286,31 +1294,39 @@ void exec_code(z80 *pcpu)
 
   case 0x0a:						/* ld a,(bc) */
     switch (pcpu->mcycle) {
-    case 1:						break;
-    case 2:	pcpu->a = z80_read(BC);			break;
+    case 1:
+      break;
+    case 2:
+      pcpu->wz = BC;
+      pcpu->a = z80_read(pcpu->wz++);
+      break;
     }
     break;
   case 0x1a:						/* ld a,(de) */
     switch (pcpu->mcycle) {
-    case 1:						break;
-    case 2:	pcpu->a = z80_read(DE);			break;
+    case 1:
+      break;
+    case 2:
+      pcpu->wz = DE;
+      pcpu->a = z80_read(pcpu->wz++);
+      break;
     }
     break;
   case 0x2a:						/* ld hl,(nn) */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	tmp16 = z80_read(pcpu->pc++);		break;
-    case 3:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-    case 4:	pcpu->l = z80_read(tmp16);		break;
-    case 5:	pcpu->h = z80_read(tmp16 + 1);		break;
+    case 2:	pcpu->wz = z80_read(pcpu->pc++);	break;
+    case 3:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+    case 4:	pcpu->l = z80_read(pcpu->wz++);		break;
+    case 5:	pcpu->h = z80_read(pcpu->wz);		break;
     }
     break;
   case 0x3a:						/* ld a,(nn) */
     switch (pcpu->mcycle) {
     case 1:						break;
-    case 2:	tmp16 = z80_read(pcpu->pc++);		break;
-    case 3:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-    case 4:	pcpu->a = z80_read(tmp16);		break;
+    case 2:	pcpu->wz = z80_read(pcpu->pc++);	break;
+    case 3:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+    case 4:	pcpu->a = z80_read(pcpu->wz++);	break;
     }
     break;
 
@@ -1692,9 +1708,15 @@ void exec_code(z80 *pcpu)
 
   case 0xd3:						/* out (n),a */
     switch (pcpu->mcycle) {
-    case 1:							break;
-    case 2:	tmp8 = z80_read(pcpu->pc++);			break;
-    case 3:	z80_out(tmp8 + (pcpu->a << 8), pcpu->a);	break;
+    case 1:
+      break;
+    case 2:
+      tmp8 = z80_read(pcpu->pc++);
+      pcpu->wz = tmp8 + (pcpu->a << 8);
+      break;
+    case 3:
+      z80_out(pcpu->wz++, pcpu->a);
+      break;
     }
     break;
 
@@ -1721,22 +1743,22 @@ void exec_code(z80 *pcpu)
 
   case 0xdb:						/* in a,(n) */
     switch (pcpu->mcycle) {
-    case 1:							break;
-    case 2:	tmp8 =  z80_read(pcpu->pc++);			break;
-    case 3:	pcpu->a = z80_in(tmp8 + (pcpu->a << 8));	break;
+    case 1:								break;
+    case 2:	pcpu->wz =  z80_read(pcpu->pc++) + (pcpu->a << 8);	break;
+    case 3:	pcpu->a = z80_in(pcpu->wz++);				break;
     }
     break;
 
   case 0xe3:						/* ex (sp),hl */
     switch (pcpu->mcycle) {
     case 1:							break;
-    case 2:	tmp16 = z80_read(pcpu->sp++);			break;
-    case 3:	tmp16 += z80_read(pcpu->sp) << 8;		break;
+    case 2:	pcpu->wz = z80_read(pcpu->sp++);		break;
+    case 3:	pcpu->wz += z80_read(pcpu->sp) << 8;		break;
     case 4:	z80_write(pcpu->sp--, pcpu->h);			break;
     case 5:
       z80_write(pcpu->sp, pcpu->l);
-      pcpu->l = tmp16 & 0xff;
-      pcpu->h = tmp16 >> 8;
+      pcpu->l = pcpu->wz & 0xff;
+      pcpu->h = pcpu->wz >> 8;
       break;
     }
     break;
@@ -2055,52 +2077,92 @@ void exec_code(z80 *pcpu)
 
     switch (pcpu->op2) {
     case 0x40:						/* in b,(c) */
-      pcpu->b = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->b = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->b] | (pcpu->f & CF);
       break;
 
     case 0x48:						/* in c,(c) */
-      pcpu->c = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->c = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->c] | (pcpu->f & CF);
       break;
 
     case 0x50:						/* in d,(c) */
-      pcpu->d = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->d = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->d] | (pcpu->f & CF);
       break;
 
     case 0x58:						/* in e,(c) */
-      pcpu->e = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->e = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->e] | (pcpu->f & CF);
       break;
 
     case 0x60:						/* in h,(c) */
-      pcpu->h = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->h = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->h] | (pcpu->f & CF);
       break;
 
     case 0x68:						/* in l,(c) */
-      pcpu->l = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->l = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->l] | (pcpu->f & CF);
       break;
 
     case 0x70:						/* in f,(c) */
-      pcpu->f = newflags[z80_in(BC)] | (pcpu->f & CF);
+      pcpu->wz = BC;
+      z80_in(pcpu->wz++);
+      pcpu->f = newflags[z80_in(pcpu->wz++)] | (pcpu->f & CF);
       break;
 
     case 0x78:						/* in a,(c) */
-      pcpu->a = z80_in(BC);
+      pcpu->wz = BC;
+      pcpu->a = z80_in(pcpu->wz++);
       pcpu->f = newflags[pcpu->a] | (pcpu->f & CF);
       break;
 
-    case 0x41:	z80_out(BC, pcpu->b);		break;	/* out (c),b */
-    case 0x49:	z80_out(BC, pcpu->c);		break;	/* out (c),c */
-    case 0x51:	z80_out(BC, pcpu->d);		break;	/* out (c),d */
-    case 0x59:	z80_out(BC, pcpu->e);		break;	/* out (c),e */
-    case 0x61:	z80_out(BC, pcpu->h);		break;	/* out (c),h */
-    case 0x69:	z80_out(BC, pcpu->l);		break;	/* out (c),l */
-    case 0x71:	z80_out(BC, 0);			break;	/* out (c),0 */
-    case 0x79:	z80_out(BC, pcpu->a);		break;	/* out (c),a */
+    case 0x41:						/* out (c),b */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->b);
+      break;
+
+    case 0x49:						/* out (c),c */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->c);
+      break;
+
+    case 0x51:						/* out (c),d */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->d);
+      break;
+
+    case 0x59:						/* out (c),e */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->e);
+      break;
+
+    case 0x61:						/* out (c),h */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->h);
+      break;
+
+    case 0x69:						/* out (c),l */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->l);
+      break;
+    
+    case 0x71:						/* out (c),0 */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, 0);
+      break;
+
+    case 0x79:						/* out (c),a */
+      pcpu->wz = BC;
+      z80_out(pcpu->wz++, pcpu->a);
+      break;
 
     case 0x42:	sbchl(pcpu, BC);		break;	/* sbc hl,bc */
     case 0x52:	sbchl(pcpu, DE);		break;	/* sbc hl,de */
@@ -2114,77 +2176,41 @@ void exec_code(z80 *pcpu)
 
     case 0x43:						/* ld (nn),bc */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	z80_write(tmp16    , pcpu->c);
-	break;
-      case 6:
-	z80_write(tmp16 + 1, pcpu->b);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->c);		break;
+      case 6:	z80_write(pcpu->wz,   pcpu->b);		break;
       }
       break;
 
     case 0x53:						/* ld (nn),de */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	z80_write(tmp16    , pcpu->e);
-	break;
-      case 6:
-	z80_write(tmp16 + 1, pcpu->d);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->e);		break;
+      case 6:	z80_write(pcpu->wz,   pcpu->d);		break;
       }
       break;
 
     case 0x63:						/* ld (nn),hl */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	z80_write(tmp16    , pcpu->l);
-	break;
-      case 6:
-	z80_write(tmp16 + 1, pcpu->h);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->l);		break;
+      case 6:	z80_write(pcpu->wz,   pcpu->h);		break;
       }
       break;
 
     case 0x73:						/* ld (nn),sp */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	z80_write(tmp16    , pcpu->sp & 0xff);
-	break;
-      case 6:
-	z80_write(tmp16 + 1, pcpu->sp >> 8);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->sp & 0xff);	break;
+      case 6:	z80_write(pcpu->wz,   pcpu->sp >> 8);	break;
       }
       break;
 
@@ -2218,7 +2244,7 @@ void exec_code(z80 *pcpu)
     case 0x66:	case 0x6e:
       pcpu->im = 0;
       break;
-      
+
     case 0x56:	case 0x76:				/* im 1 */
       pcpu->im = 1;
       break;
@@ -2263,77 +2289,41 @@ void exec_code(z80 *pcpu)
 
     case 0x4b:						/* ld bc,(nn) */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	pcpu->c = z80_read(tmp16);
-	break;
-      case 6:
-	pcpu->b = z80_read(tmp16 + 1);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	pcpu->c = z80_read(pcpu->wz++);		break;
+      case 6:	pcpu->b = z80_read(pcpu->wz);		break;
       }
       break;
-	
+
     case 0x5b:						/* ld de,(nn) */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	pcpu->e = z80_read(tmp16);
-	break;
-      case 6:
-	pcpu->d = z80_read(tmp16 + 1);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	pcpu->e = z80_read(pcpu->wz++);		break;
+      case 6:	pcpu->d = z80_read(pcpu->wz);		break;
       }
       break;
 
     case 0x6b:						/* ld hl,(nn) */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	pcpu->l = z80_read(tmp16);
-	break;
-      case 6:
-	pcpu->h = z80_read(tmp16 + 1);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	pcpu->l = z80_read(pcpu->wz++);		break;
+      case 6:	pcpu->h = z80_read(pcpu->wz);		break;
       }
       break;
 
     case 0x7b:						/* ld sp,(nn) */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	pcpu->sp = z80_read(tmp16);
-	break;
-      case 6:
-	pcpu->sp += z80_read(tmp16 + 1) << 8;
-	break;
+      case 2:							break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);		break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;		break;
+      case 5:	pcpu->sp = z80_read(pcpu->wz++);		break;
+      case 6:	pcpu->sp += z80_read(pcpu->wz) << 8;		break;
       }
       break;
 
@@ -2342,7 +2332,8 @@ void exec_code(z80 *pcpu)
       case 2:
 	break;
       case 3:
-	tmp8 = z80_read(HL);
+	pcpu->wz = HL;
+	tmp8 = z80_read(pcpu->wz++);
 	break;
       case 4:
 	break;
@@ -2359,7 +2350,8 @@ void exec_code(z80 *pcpu)
       case 2:
 	break;
       case 3:
-	tmp8 = z80_read(HL);
+	pcpu->wz = HL;
+	tmp8 = z80_read(pcpu->wz++);
 	break;
       case 4:
 	break;
@@ -2375,22 +2367,22 @@ void exec_code(z80 *pcpu)
       break;
 
     case 0xa0:	ldi(pcpu);				break;	/* ldi */
-    case 0xa1:	cpi(pcpu);				break;	/* cpi */
+    case 0xa1:	cpir(pcpu, 0);				break;	/* cpi */
     case 0xa2:	ini(pcpu);				break;	/* ini */
     case 0xa3:	outi(pcpu);				break;	/* outi */
 
     case 0xa8:	ldd(pcpu);				break;	/* ldd */
-    case 0xa9:	cpd(pcpu);				break;	/* cpd */
+    case 0xa9:	cpdr(pcpu, 0);				break;	/* cpd */
     case 0xaa:	ind(pcpu);				break;	/* ind */
     case 0xab:	outd(pcpu);				break;	/* outd */
 
     case 0xb0:	ldi(pcpu);	repbc(pcpu);		break;	/* ldir */
-    case 0xb1:	cpi(pcpu);	repcp(pcpu);		break;	/* cpir */
+    case 0xb1:	cpir(pcpu, 1);				break;	/* cpir */
     case 0xb2:	ini(pcpu);	repb(pcpu);		break;	/* inir */
     case 0xb3:	outi(pcpu);	repb(pcpu);		break;	/* otir */
 
     case 0xb8:	ldd(pcpu);	repbc(pcpu);		break;	/* lddr */
-    case 0xb9:	cpd(pcpu);	repcp(pcpu);		break;	/* cpdr */
+    case 0xb9:	cpdr(pcpu, 1);				break;	/* cpdr */
     case 0xba:	ind(pcpu);	repb(pcpu);		break;	/* indr */
     case 0xbb:	outd(pcpu);	repb(pcpu);		break;	/* otdr */
 
@@ -2412,7 +2404,7 @@ void exec_code(z80 *pcpu)
     case 0x19:addw(pcpu, &pcpu->ixh, &pcpu->ixl, DE);	break;	/* add ix,bc */
     case 0x29:addw(pcpu, &pcpu->ixh, &pcpu->ixl, IX);	break;	/* add ix,ix */
     case 0x39:addw(pcpu, &pcpu->ixh, &pcpu->ixl, pcpu->sp);	break;	/* add ix,sp */
-      
+
     case 0x21:						/* ld ix,nn */
       switch (pcpu->mcycle) {
       case 2:
@@ -2428,20 +2420,11 @@ void exec_code(z80 *pcpu)
 
     case 0x22:						/* ld (nn),ix */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	z80_write(tmp16,     pcpu->ixl);
-	break;
-      case 6:
-	z80_write(tmp16 + 1, pcpu->ixh);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->ixl);	break;
+      case 6:	z80_write(pcpu->wz,   pcpu->ixh);	break;
       }
       break;
 
@@ -2472,56 +2455,50 @@ void exec_code(z80 *pcpu)
       break;
     case 0x2a:						/* ld ix,(nn) */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp16 = z80_read(pcpu->pc++);
-	break;
-      case 4:
-	tmp16 += z80_read(pcpu->pc++) << 8;
-	break;
-      case 5:
-	pcpu->ixl = z80_read(tmp16);
-	break;
-      case 6:
-	pcpu->ixh = z80_read(tmp16 + 1);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	pcpu->ixl = z80_read(pcpu->wz++);	break;
+      case 6:	pcpu->ixh = z80_read(pcpu->wz);		break;
       }
       break;
 
     case 0x34:						/* inc (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;    
-      case 5:	tmp8 = z80_read(tmp16);				break;
-      case 6:	inc(pcpu, &tmp8);	z80_write(tmp16, tmp8);	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	tmp8 = z80_read(pcpu->wz);		break;
+      case 6:
+	inc(pcpu, &tmp8);
+	z80_write(pcpu->wz, tmp8);
+	break;
       }
       break;
 
     case 0x35:						/* dec (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	tmp8 = z80_read(tmp16);				break;
-      case 6:	dec(pcpu, &tmp8);	z80_write(tmp16, tmp8);	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	tmp8 = z80_read(pcpu->wz);		break;
+      case 6:
+	dec(pcpu, &tmp8);
+	z80_write(pcpu->wz, tmp8);
+	break;
       }
       break;
 
     case 0x36:						/* ld (ix+d),n */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp8 = z80_read(pcpu->pc++);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
       case 4:
-	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);
+	pcpu->wz = IX + (int8_t)pcpu->wz;
 	tmp8 = z80_read(pcpu->pc++);
 	break;
       case 5:
-	z80_write(tmp16, tmp8);
+	z80_write(pcpu->wz, tmp8);
 	break;
       }
       break;
@@ -2572,10 +2549,10 @@ void exec_code(z80 *pcpu)
     case 0x85:	add(pcpu, pcpu->ixl);		break;	/* add a,ixl */
     case 0x86:						/* add a,(ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	add(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	add(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2583,10 +2560,10 @@ void exec_code(z80 *pcpu)
     case 0x8d:	adc(pcpu, pcpu->ixl);		break;	/* adc a,ixl */
     case 0x8e:						/* adc a,(ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	adc(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	adc(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2594,10 +2571,10 @@ void exec_code(z80 *pcpu)
     case 0x95:	sub(pcpu, pcpu->ixl);		break;	/* sub ixl */
     case 0x96:						/* sub (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	sub(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	sub(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2605,10 +2582,10 @@ void exec_code(z80 *pcpu)
     case 0x9d:	sbc(pcpu, pcpu->ixl);		break;	/* sbc a,ixl */
     case 0x9e:						/* sbc (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	sbc(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	sbc(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2616,10 +2593,10 @@ void exec_code(z80 *pcpu)
     case 0xa5:	and(pcpu, pcpu->ixl);		break;	/* and ixl */
     case 0xa6:						/* and (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	and(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	and(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2627,10 +2604,10 @@ void exec_code(z80 *pcpu)
     case 0xad:	xor(pcpu, pcpu->ixl);		break;	/* xor ixl */
     case 0xae:						/* xor (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	xor(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	xor(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2638,10 +2615,10 @@ void exec_code(z80 *pcpu)
     case 0xb5:	or(pcpu, pcpu->ixl);		break;	/* or ixl */
     case 0xb6:						/* or (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	or(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	or(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2649,10 +2626,10 @@ void exec_code(z80 *pcpu)
     case 0xbd:	cp(pcpu, pcpu->ixl);		break;	/* cp ixl */
     case 0xbe:						/* cp (ix+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-      case 5:	cp(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+      case 5:	cp(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -2661,13 +2638,13 @@ void exec_code(z80 *pcpu)
     case 0xe3:						/* ex (sp),ix */
       switch (pcpu->mcycle) {
       case 2:							break;
-      case 3:	tmp16 = z80_read(pcpu->sp++);			break;
-      case 4:	tmp16 += z80_read(pcpu->sp) << 8;		break;
+      case 3:	pcpu->wz = z80_read(pcpu->sp++);		break;
+      case 4:	pcpu->wz += z80_read(pcpu->sp) << 8;		break;
       case 5:	z80_write(pcpu->sp--, pcpu->ixh);		break;
       case 6:
 	z80_write(pcpu->sp, pcpu->ixl);
-	pcpu->ixl = tmp16 & 0xff;
-	pcpu->ixh = tmp16 >> 8;
+	pcpu->ixl = pcpu->wz & 0xff;
+	pcpu->ixh = pcpu->wz >> 8;
 	break;
       }
       break;
@@ -2684,89 +2661,85 @@ void exec_code(z80 *pcpu)
 
     case 0xcb:						/* DDCB prefix */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp8 = z80_read(pcpu->pc++);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
       case 4:
-	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);
+	pcpu->wz = IX + (int8_t)pcpu->wz;
 	pcpu->op3 = z80_read(pcpu->pc++);
 	break;
       case 5:
       case 6:
 	switch (pcpu->op3) {
-	case 0x00: pcpu->b = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),b*/
-	case 0x01: pcpu->c = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),c*/
-	case 0x02: pcpu->d = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),d*/
-	case 0x03: pcpu->e = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),e*/
-	case 0x04: pcpu->h = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),h*/
-	case 0x05: pcpu->l = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),l*/
-	case 0x06:           mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d)  */
-	case 0x07: pcpu->a = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (ix+d),a*/
+	case 0x00: pcpu->b = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),b*/
+	case 0x01: pcpu->c = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),c*/
+	case 0x02: pcpu->d = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),d*/
+	case 0x03: pcpu->e = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),e*/
+	case 0x04: pcpu->h = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),h*/
+	case 0x05: pcpu->l = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),l*/
+	case 0x06:           mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d)  */
+	case 0x07: pcpu->a = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (ix+d),a*/
+	case 0x08: pcpu->b = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),b*/
+	case 0x09: pcpu->c = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),c*/
+	case 0x0a: pcpu->d = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),d*/
+	case 0x0b: pcpu->e = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),e*/
+	case 0x0c: pcpu->h = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),h*/
+	case 0x0d: pcpu->l = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),l*/
+	case 0x0e:	     mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d)  */
+	case 0x0f: pcpu->a = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (ix+d),a*/
 
-	case 0x08: pcpu->b = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),b*/
-	case 0x09: pcpu->c = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),c*/
-	case 0x0a: pcpu->d = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),d*/
-	case 0x0b: pcpu->e = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),e*/
-	case 0x0c: pcpu->h = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),h*/
-	case 0x0d: pcpu->l = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),l*/
-	case 0x0e:	     mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d)  */
-	case 0x0f: pcpu->a = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (ix+d),a*/
+	case 0x10: pcpu->b = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),b*/
+	case 0x11: pcpu->c = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),c*/
+	case 0x12: pcpu->d = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),d*/
+	case 0x13: pcpu->e = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),e*/
+	case 0x14: pcpu->h = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),h*/
+	case 0x15: pcpu->l = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),l*/
+	case 0x16:           mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d)  */
+	case 0x17: pcpu->a = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (ix+d),a*/
 
-	case 0x10: pcpu->b = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),b*/
-	case 0x11: pcpu->c = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),c*/
-	case 0x12: pcpu->d = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),d*/
-	case 0x13: pcpu->e = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),e*/
-	case 0x14: pcpu->h = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),h*/
-	case 0x15: pcpu->l = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),l*/
-	case 0x16:           mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d)  */
-	case 0x17: pcpu->a = mreg(pcpu, rl, tmp16, 3); break; /*rl (ix+d),a*/
+	case 0x18: pcpu->b = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),b*/
+	case 0x19: pcpu->c = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),c*/
+	case 0x1a: pcpu->d = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),d*/
+	case 0x1b: pcpu->e = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),e*/
+	case 0x1c: pcpu->h = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),h*/
+	case 0x1d: pcpu->l = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),l*/
+	case 0x1e:           mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d)  */
+	case 0x1f: pcpu->a = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (ix+d),a*/
 
-	case 0x18: pcpu->b = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),b*/
-	case 0x19: pcpu->c = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),c*/
-	case 0x1a: pcpu->d = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),d*/
-	case 0x1b: pcpu->e = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),e*/
-	case 0x1c: pcpu->h = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),h*/
-	case 0x1d: pcpu->l = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),l*/
-	case 0x1e:           mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d)  */
-	case 0x1f: pcpu->a = mreg(pcpu, rr, tmp16, 3); break; /*rr (ix+d),a*/
+	case 0x20: pcpu->b = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),b*/
+	case 0x21: pcpu->c = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),c*/
+	case 0x22: pcpu->d = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),d*/
+	case 0x23: pcpu->e = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),e*/
+	case 0x24: pcpu->h = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),h*/
+	case 0x25: pcpu->l = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),l*/
+	case 0x26:           mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d)  */
+	case 0x27: pcpu->a = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (ix+d),a*/
 
-	case 0x20: pcpu->b = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),b*/
-	case 0x21: pcpu->c = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),c*/
-	case 0x22: pcpu->d = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),d*/
-	case 0x23: pcpu->e = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),e*/
-	case 0x24: pcpu->h = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),h*/
-	case 0x25: pcpu->l = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),l*/
-	case 0x26:           mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d)  */
-	case 0x27: pcpu->a = mreg(pcpu, sla, tmp16, 3); break; /*sla (ix+d),a*/
+	case 0x28: pcpu->b = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),b*/
+	case 0x29: pcpu->c = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),c*/
+	case 0x2a: pcpu->d = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),d*/
+	case 0x2b: pcpu->e = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),e*/
+	case 0x2c: pcpu->h = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),h*/
+	case 0x2d: pcpu->l = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),l*/
+	case 0x2e:           mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d)  */
+	case 0x2f: pcpu->a = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (ix+d),a*/
 
-	case 0x28: pcpu->b = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),b*/
-	case 0x29: pcpu->c = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),c*/
-	case 0x2a: pcpu->d = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),d*/
-	case 0x2b: pcpu->e = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),e*/
-	case 0x2c: pcpu->h = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),h*/
-	case 0x2d: pcpu->l = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),l*/
-	case 0x2e:           mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d)  */
-	case 0x2f: pcpu->a = mreg(pcpu, sra, tmp16, 3); break; /*sra (ix+d),a*/
+	case 0x30: pcpu->b = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),b*/
+	case 0x31: pcpu->c = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),c*/
+	case 0x32: pcpu->d = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),d*/
+	case 0x33: pcpu->e = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),e*/
+	case 0x34: pcpu->h = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),h*/
+	case 0x35: pcpu->l = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),l*/
+	case 0x36:           mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d)  */
+	case 0x37: pcpu->a = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (ix+d),a*/
 
-	case 0x30: pcpu->b = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),b*/
-	case 0x31: pcpu->c = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),c*/
-	case 0x32: pcpu->d = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),d*/
-	case 0x33: pcpu->e = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),e*/
-	case 0x34: pcpu->h = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),h*/
-	case 0x35: pcpu->l = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),l*/
-	case 0x36:           mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d)  */
-	case 0x37: pcpu->a = mreg(pcpu, sll, tmp16, 3); break; /*sll (ix+d),a*/
-
-	case 0x38: pcpu->b = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),b*/
-	case 0x39: pcpu->c = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),c*/
-	case 0x3a: pcpu->d = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),d*/
-	case 0x3b: pcpu->e = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),e*/
-	case 0x3c: pcpu->h = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),h*/
-	case 0x3d: pcpu->l = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),l*/
-	case 0x3e:           mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d)  */
-	case 0x3f: pcpu->a = mreg(pcpu, srl, tmp16, 3); break; /*srl (ix+d),a*/
+	case 0x38: pcpu->b = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),b*/
+	case 0x39: pcpu->c = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),c*/
+	case 0x3a: pcpu->d = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),d*/
+	case 0x3b: pcpu->e = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),e*/
+	case 0x3c: pcpu->h = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),h*/
+	case 0x3d: pcpu->l = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),l*/
+	case 0x3e:           mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d)  */
+	case 0x3f: pcpu->a = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (ix+d),a*/
 
 	case 0x40:	case 0x41:	case 0x42:	case 0x43:
 	case 0x44:	case 0x45:	case 0x46:	case 0x47:
@@ -2785,139 +2758,138 @@ void exec_code(z80 *pcpu)
 	case 0x78:	case 0x79:	case 0x7a:	case 0x7b:
 	case 0x7c:	case 0x7d:	case 0x7e:	case 0x7f:
 	  /* bit n,(ix+d) */
-	  bitixy(pcpu, (pcpu->op3 >> 3) & 0x07, tmp16);
+	  bitixy(pcpu, (pcpu->op3 >> 3) & 0x07, pcpu->wz);
 	  pcpu->mcycle = 0;
 	  break;
 
-	case 0x80: pcpu->b = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),b*/
-	case 0x81: pcpu->c = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),c*/
-	case 0x82: pcpu->d = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),d*/
-	case 0x83: pcpu->e = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),e*/
-	case 0x84: pcpu->h = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),h*/
-	case 0x85: pcpu->l = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),l*/
-	case 0x86:           resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d)  */
-	case 0x87: pcpu->a = resm(pcpu, 0, tmp16, 2); break; /*res 0,(ix+d),a*/
-	case 0x88: pcpu->b = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),b*/
-	case 0x89: pcpu->c = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),c*/
-	case 0x8a: pcpu->d = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),d*/
-	case 0x8b: pcpu->e = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),e*/
-	case 0x8c: pcpu->h = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),h*/
-	case 0x8d: pcpu->l = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),l*/
-	case 0x8e:           resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d)  */
-	case 0x8f: pcpu->a = resm(pcpu, 1, tmp16, 2); break; /*res 1,(ix+d),a*/
-	case 0x90: pcpu->b = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),b*/
-	case 0x91: pcpu->c = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),c*/
-	case 0x92: pcpu->d = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),d*/
-	case 0x93: pcpu->e = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),e*/
-	case 0x94: pcpu->h = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),h*/
-	case 0x95: pcpu->l = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),l*/
-	case 0x96:           resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d)  */
-	case 0x97: pcpu->a = resm(pcpu, 2, tmp16, 2); break; /*res 2,(ix+d),a*/
-	case 0x98: pcpu->b = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),b*/
-	case 0x99: pcpu->c = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),c*/
-	case 0x9a: pcpu->d = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),d*/
-	case 0x9b: pcpu->e = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),e*/
-	case 0x9c: pcpu->h = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),h*/
-	case 0x9d: pcpu->l = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),l*/
-	case 0x9e:           resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d)  */
-	case 0x9f: pcpu->a = resm(pcpu, 3, tmp16, 2); break; /*res 3,(ix+d),a*/
-	case 0xa0: pcpu->b = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),b*/
-	case 0xa1: pcpu->c = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),c*/
-	case 0xa2: pcpu->d = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),d*/
-	case 0xa3: pcpu->e = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),e*/
-	case 0xa4: pcpu->h = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),h*/
-	case 0xa5: pcpu->l = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),l*/
-	case 0xa6:           resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d)  */
-	case 0xa7: pcpu->a = resm(pcpu, 4, tmp16, 2); break; /*res 4,(ix+d),a*/
-	case 0xa8: pcpu->b = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),b*/
-	case 0xa9: pcpu->c = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),c*/
-	case 0xaa: pcpu->d = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),d*/
-	case 0xab: pcpu->e = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),e*/
-	case 0xac: pcpu->h = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),h*/
-	case 0xad: pcpu->l = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),l*/
-	case 0xae:           resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d)  */
-	case 0xaf: pcpu->a = resm(pcpu, 5, tmp16, 2); break; /*res 5,(ix+d),a*/
-	case 0xb0: pcpu->b = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),b*/
-	case 0xb1: pcpu->c = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),c*/
-	case 0xb2: pcpu->d = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),d*/
-	case 0xb3: pcpu->e = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),e*/
-	case 0xb4: pcpu->h = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),h*/
-	case 0xb5: pcpu->l = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),l*/
-	case 0xb6:           resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d)  */
-	case 0xb7: pcpu->a = resm(pcpu, 6, tmp16, 2); break; /*res 6,(ix+d),a*/
-	case 0xb8: pcpu->b = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),b*/
-	case 0xb9: pcpu->c = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),c*/
-	case 0xba: pcpu->d = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),d*/
-	case 0xbb: pcpu->e = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),e*/
-	case 0xbc: pcpu->h = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),h*/
-	case 0xbd: pcpu->l = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),l*/
-	case 0xbe:           resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d)  */
-	case 0xbf: pcpu->a = resm(pcpu, 7, tmp16, 2); break; /*res 7,(ix+d),a*/
-
-	case 0xc0: pcpu->b = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),b*/
-	case 0xc1: pcpu->c = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),c*/
-	case 0xc2: pcpu->d = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),d*/
-	case 0xc3: pcpu->e = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),e*/
-	case 0xc4: pcpu->h = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),h*/
-	case 0xc5: pcpu->l = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),l*/
-	case 0xc6:           setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d)  */
-	case 0xc7: pcpu->a = setm(pcpu, 0, tmp16, 2); break; /*set 0,(ix+d),a*/
-	case 0xc8: pcpu->b = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),b*/
-	case 0xc9: pcpu->c = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),c*/
-	case 0xca: pcpu->d = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),d*/
-	case 0xcb: pcpu->e = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),e*/
-	case 0xcc: pcpu->h = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),h*/
-	case 0xcd: pcpu->l = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),l*/
-	case 0xce:           setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d)  */
-	case 0xcf: pcpu->a = setm(pcpu, 1, tmp16, 2); break; /*set 1,(ix+d),a*/
-	case 0xd0: pcpu->b = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),b*/
-	case 0xd1: pcpu->c = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),c*/
-	case 0xd2: pcpu->d = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),d*/
-	case 0xd3: pcpu->e = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),e*/
-	case 0xd4: pcpu->h = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),h*/
-	case 0xd5: pcpu->l = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),l*/
-	case 0xd6:           setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d)  */
-	case 0xd7: pcpu->a = setm(pcpu, 2, tmp16, 2); break; /*set 2,(ix+d),a*/
-	case 0xd8: pcpu->b = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),b*/
-	case 0xd9: pcpu->c = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),c*/
-	case 0xda: pcpu->d = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),d*/
-	case 0xdb: pcpu->e = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),e*/
-	case 0xdc: pcpu->h = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),h*/
-	case 0xdd: pcpu->l = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),l*/
-	case 0xde:           setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d)  */
-	case 0xdf: pcpu->a = setm(pcpu, 3, tmp16, 2); break; /*set 3,(ix+d),a*/
-	case 0xe0: pcpu->b = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),b*/
-	case 0xe1: pcpu->c = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),c*/
-	case 0xe2: pcpu->d = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),d*/
-	case 0xe3: pcpu->e = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),e*/
-	case 0xe4: pcpu->h = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),h*/
-	case 0xe5: pcpu->l = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),l*/
-	case 0xe6:           setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d)  */
-	case 0xe7: pcpu->a = setm(pcpu, 4, tmp16, 2); break; /*set 4,(ix+d),a*/
-	case 0xe8: pcpu->b = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),b*/
-	case 0xe9: pcpu->c = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),c*/
-	case 0xea: pcpu->d = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),d*/
-	case 0xeb: pcpu->e = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),e*/
-	case 0xec: pcpu->h = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),h*/
-	case 0xed: pcpu->l = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),l*/
-	case 0xee:           setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d)  */
-	case 0xef: pcpu->a = setm(pcpu, 5, tmp16, 2); break; /*set 5,(ix+d),a*/
-	case 0xf0: pcpu->b = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),b*/
-	case 0xf1: pcpu->c = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),c*/
-	case 0xf2: pcpu->d = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),d*/
-	case 0xf3: pcpu->e = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),e*/
-	case 0xf4: pcpu->h = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),h*/
-	case 0xf5: pcpu->l = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),l*/
-	case 0xf6:           setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d)  */
-	case 0xf7: pcpu->a = setm(pcpu, 6, tmp16, 2); break; /*set 6,(ix+d),a*/
-	case 0xf8: pcpu->b = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),b*/
-	case 0xf9: pcpu->c = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),c*/
-	case 0xfa: pcpu->d = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),d*/
-	case 0xfb: pcpu->e = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),e*/
-	case 0xfc: pcpu->h = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),h*/
-	case 0xfd: pcpu->l = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),l*/
-	case 0xfe:           setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d)  */
-	case 0xff: pcpu->a = setm(pcpu, 7, tmp16, 2); break; /*set 7,(ix+d),a*/
+	case 0x80: pcpu->b = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),b*/
+	case 0x81: pcpu->c = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),c*/
+	case 0x82: pcpu->d = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),d*/
+	case 0x83: pcpu->e = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),e*/
+	case 0x84: pcpu->h = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),h*/
+	case 0x85: pcpu->l = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),l*/
+	case 0x86:           resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d)  */
+	case 0x87: pcpu->a = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(ix+d),a*/
+	case 0x88: pcpu->b = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),b*/
+	case 0x89: pcpu->c = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),c*/
+	case 0x8a: pcpu->d = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),d*/
+	case 0x8b: pcpu->e = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),e*/
+	case 0x8c: pcpu->h = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),h*/
+	case 0x8d: pcpu->l = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),l*/
+	case 0x8e:           resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d)  */
+	case 0x8f: pcpu->a = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(ix+d),a*/
+	case 0x90: pcpu->b = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),b*/
+	case 0x91: pcpu->c = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),c*/
+	case 0x92: pcpu->d = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),d*/
+	case 0x93: pcpu->e = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),e*/
+	case 0x94: pcpu->h = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),h*/
+	case 0x95: pcpu->l = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),l*/
+	case 0x96:           resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d)  */
+	case 0x97: pcpu->a = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(ix+d),a*/
+	case 0x98: pcpu->b = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),b*/
+	case 0x99: pcpu->c = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),c*/
+	case 0x9a: pcpu->d = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),d*/
+	case 0x9b: pcpu->e = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),e*/
+	case 0x9c: pcpu->h = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),h*/
+	case 0x9d: pcpu->l = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),l*/
+	case 0x9e:           resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d)  */
+	case 0x9f: pcpu->a = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(ix+d),a*/
+	case 0xa0: pcpu->b = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),b*/
+	case 0xa1: pcpu->c = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),c*/
+	case 0xa2: pcpu->d = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),d*/
+	case 0xa3: pcpu->e = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),e*/
+	case 0xa4: pcpu->h = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),h*/
+	case 0xa5: pcpu->l = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),l*/
+	case 0xa6:           resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d)  */
+	case 0xa7: pcpu->a = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(ix+d),a*/
+	case 0xa8: pcpu->b = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),b*/
+	case 0xa9: pcpu->c = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),c*/
+	case 0xaa: pcpu->d = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),d*/
+	case 0xab: pcpu->e = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),e*/
+	case 0xac: pcpu->h = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),h*/
+	case 0xad: pcpu->l = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),l*/
+	case 0xae:           resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d)  */
+	case 0xaf: pcpu->a = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(ix+d),a*/
+	case 0xb0: pcpu->b = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),b*/
+	case 0xb1: pcpu->c = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),c*/
+	case 0xb2: pcpu->d = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),d*/
+	case 0xb3: pcpu->e = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),e*/
+	case 0xb4: pcpu->h = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),h*/
+	case 0xb5: pcpu->l = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),l*/
+	case 0xb6:           resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d)  */
+	case 0xb7: pcpu->a = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(ix+d),a*/
+	case 0xb8: pcpu->b = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),b*/
+	case 0xb9: pcpu->c = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),c*/
+	case 0xba: pcpu->d = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),d*/
+	case 0xbb: pcpu->e = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),e*/
+	case 0xbc: pcpu->h = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),h*/
+	case 0xbd: pcpu->l = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),l*/
+	case 0xbe:           resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d)  */
+	case 0xbf: pcpu->a = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(ix+d),a*/
+	case 0xc0: pcpu->b = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),b*/
+	case 0xc1: pcpu->c = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),c*/
+	case 0xc2: pcpu->d = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),d*/
+	case 0xc3: pcpu->e = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),e*/
+	case 0xc4: pcpu->h = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),h*/
+	case 0xc5: pcpu->l = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),l*/
+	case 0xc6:           setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d)  */
+	case 0xc7: pcpu->a = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(ix+d),a*/
+	case 0xc8: pcpu->b = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),b*/
+	case 0xc9: pcpu->c = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),c*/
+	case 0xca: pcpu->d = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),d*/
+	case 0xcb: pcpu->e = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),e*/
+	case 0xcc: pcpu->h = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),h*/
+	case 0xcd: pcpu->l = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),l*/
+	case 0xce:           setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d)  */
+	case 0xcf: pcpu->a = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(ix+d),a*/
+	case 0xd0: pcpu->b = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),b*/
+	case 0xd1: pcpu->c = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),c*/
+	case 0xd2: pcpu->d = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),d*/
+	case 0xd3: pcpu->e = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),e*/
+	case 0xd4: pcpu->h = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),h*/
+	case 0xd5: pcpu->l = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),l*/
+	case 0xd6:           setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d)  */
+	case 0xd7: pcpu->a = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(ix+d),a*/
+	case 0xd8: pcpu->b = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),b*/
+	case 0xd9: pcpu->c = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),c*/
+	case 0xda: pcpu->d = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),d*/
+	case 0xdb: pcpu->e = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),e*/
+	case 0xdc: pcpu->h = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),h*/
+	case 0xdd: pcpu->l = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),l*/
+	case 0xde:           setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d)  */
+	case 0xdf: pcpu->a = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(ix+d),a*/
+	case 0xe0: pcpu->b = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),b*/
+	case 0xe1: pcpu->c = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),c*/
+	case 0xe2: pcpu->d = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),d*/
+	case 0xe3: pcpu->e = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),e*/
+	case 0xe4: pcpu->h = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),h*/
+	case 0xe5: pcpu->l = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),l*/
+	case 0xe6:           setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d)  */
+	case 0xe7: pcpu->a = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(ix+d),a*/
+	case 0xe8: pcpu->b = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),b*/
+	case 0xe9: pcpu->c = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),c*/
+	case 0xea: pcpu->d = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),d*/
+	case 0xeb: pcpu->e = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),e*/
+	case 0xec: pcpu->h = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),h*/
+	case 0xed: pcpu->l = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),l*/
+	case 0xee:           setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d)  */
+	case 0xef: pcpu->a = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(ix+d),a*/
+	case 0xf0: pcpu->b = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),b*/
+	case 0xf1: pcpu->c = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),c*/
+	case 0xf2: pcpu->d = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),d*/
+	case 0xf3: pcpu->e = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),e*/
+	case 0xf4: pcpu->h = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),h*/
+	case 0xf5: pcpu->l = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),l*/
+	case 0xf6:           setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d)  */
+	case 0xf7: pcpu->a = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(ix+d),a*/
+	case 0xf8: pcpu->b = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),b*/
+	case 0xf9: pcpu->c = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),c*/
+	case 0xfa: pcpu->d = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),d*/
+	case 0xfb: pcpu->e = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),e*/
+	case 0xfc: pcpu->h = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),h*/
+	case 0xfd: pcpu->l = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),l*/
+	case 0xfe:           setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d)  */
+	case 0xff: pcpu->a = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(ix+d),a*/
 	}
       }
       break;						/* DDCB prefix end */
@@ -2943,7 +2915,7 @@ void exec_code(z80 *pcpu)
     case 0x19:addw(pcpu, &pcpu->iyh, &pcpu->iyl, DE);	break;	/* add iy,bc */
     case 0x29:addw(pcpu, &pcpu->iyh, &pcpu->iyl, IY);	break;	/* add iy,iy */
     case 0x39:addw(pcpu, &pcpu->iyh, &pcpu->iyl, pcpu->sp);	break;	/* add iy,sp */
-      
+
     case 0x21:						/* ld iy,nn */
       switch (pcpu->mcycle) {
       case 2:						break;
@@ -2955,10 +2927,10 @@ void exec_code(z80 *pcpu)
     case 0x22:						/* ld (nn),iy */
       switch (pcpu->mcycle) {
       case 2:						break;
-      case 3:	tmp16 = z80_read(pcpu->pc++);		break;
-      case 4:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-      case 5:	z80_write(tmp16,     pcpu->iyl);	break;
-      case 6:	z80_write(tmp16 + 1, pcpu->iyh);	break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	z80_write(pcpu->wz++, pcpu->iyl);	break;
+      case 6:	z80_write(pcpu->wz,   pcpu->iyh);	break;
       }
       break;
 
@@ -2985,42 +2957,48 @@ void exec_code(z80 *pcpu)
     case 0x2a:						/* ld iy,(nn) */
       switch (pcpu->mcycle) {
       case 2:						break;
-      case 3:	tmp16 = z80_read(pcpu->pc++);		break;
-      case 4:	tmp16 += z80_read(pcpu->pc++) << 8;	break;
-      case 5:	pcpu->iyl = z80_read(tmp16);		break;
-      case 6:	pcpu->iyh = z80_read(tmp16 + 1);	break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz += z80_read(pcpu->pc++) << 8;	break;
+      case 5:	pcpu->iyl = z80_read(pcpu->wz++);	break;
+      case 6:	pcpu->iyh = z80_read(pcpu->wz);		break;
       }
       break;
 
     case 0x34:						/* inc (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	tmp8 = z80_read(tmp16);				break;
-      case 6:	inc(pcpu, &tmp8);	z80_write(tmp16, tmp8);	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	tmp8 = z80_read(pcpu->wz);		break;
+      case 6:
+	inc(pcpu, &tmp8);
+	z80_write(pcpu->wz, tmp8);
+	break;
       }
       break;
 
     case 0x35:						/* dec (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	tmp8 = z80_read(tmp16);				break;
-      case 6:	dec(pcpu, &tmp8);	z80_write(tmp16, tmp8);	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	tmp8 = z80_read(pcpu->wz);		break;
+      case 6:
+	dec(pcpu, &tmp8);
+	z80_write(pcpu->wz, tmp8);
+	break;
       }
       break;
 
     case 0x36:						/* ld (iy+d),n */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
       case 4:
-	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);
+	pcpu->wz = IY + (int8_t)pcpu->wz;
      	tmp8 = z80_read(pcpu->pc++);
 	break;
-      case 5:	z80_write(tmp16, tmp8);				break;
+      case 5:	z80_write(pcpu->wz, tmp8);		break;
       }
       break;
 
@@ -3070,10 +3048,10 @@ void exec_code(z80 *pcpu)
     case 0x85:	add(pcpu, pcpu->iyl);		break;	/* add a,iyl */
     case 0x86:						/* add a,(iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	add(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	add(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3081,10 +3059,10 @@ void exec_code(z80 *pcpu)
     case 0x8d:	adc(pcpu, pcpu->iyl);		break;	/* adc a,iyl */
     case 0x8e:						/* adc a,(iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	adc(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	adc(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3092,10 +3070,10 @@ void exec_code(z80 *pcpu)
     case 0x95:	sub(pcpu, pcpu->iyl);		break;	/* sub iyl */
     case 0x96:						/* sub (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	sub(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	sub(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3103,10 +3081,10 @@ void exec_code(z80 *pcpu)
     case 0x9d:	sbc(pcpu, pcpu->iyl);		break;	/* sbc a,iyl */
     case 0x9e:						/* sbc (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	sbc(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	sbc(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3114,10 +3092,10 @@ void exec_code(z80 *pcpu)
     case 0xa5:	and(pcpu, pcpu->iyl);		break;	/* and iyl */
     case 0xa6:						/* and (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	and(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	and(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3125,10 +3103,10 @@ void exec_code(z80 *pcpu)
     case 0xad:	xor(pcpu, pcpu->iyl);		break;	/* xor iyl */
     case 0xae:						/* xor (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	xor(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	xor(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3136,10 +3114,10 @@ void exec_code(z80 *pcpu)
     case 0xb5:	or(pcpu, pcpu->iyl);		break;	/* or iyl */
     case 0xb6:						/* or (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	or(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	or(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3147,10 +3125,10 @@ void exec_code(z80 *pcpu)
     case 0xbd:	cp(pcpu, pcpu->iyl);		break;	/* cp iyl */
     case 0xbe:						/* cp (iy+d) */
       switch (pcpu->mcycle) {
-      case 2:							break;
-      case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-      case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-      case 5:	cp(pcpu, z80_read(tmp16));			break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+      case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+      case 5:	cp(pcpu, z80_read(pcpu->wz));		break;
       }
       break;
 
@@ -3159,13 +3137,13 @@ void exec_code(z80 *pcpu)
     case 0xe3:						/* ex (sp),iy */
       switch (pcpu->mcycle) {
       case 2:							break;
-      case 3:	tmp16 = z80_read(pcpu->sp++);			break;
-      case 4:	tmp16 += z80_read(pcpu->sp) << 8;		break;
+      case 3:	pcpu->wz = z80_read(pcpu->sp++);		break;
+      case 4:	pcpu->wz += z80_read(pcpu->sp) << 8;		break;
       case 5:	z80_write(pcpu->sp--, pcpu->iyh);		break;
       case 6:
 	z80_write(pcpu->sp, pcpu->iyl);
-	pcpu->iyl = tmp16 & 0xff;
-	pcpu->iyh = tmp16 >> 8;
+	pcpu->iyl = pcpu->wz & 0xff;
+	pcpu->iyh = pcpu->wz >> 8;
 	break;
       }
       break;
@@ -3182,89 +3160,86 @@ void exec_code(z80 *pcpu)
 
     case 0xcb:						/* FDCB prefix */
       switch (pcpu->mcycle) {
-      case 2:
-	break;
-      case 3:
-	tmp8 = z80_read(pcpu->pc++);
-	break;
+      case 2:						break;
+      case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
       case 4:
-	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);
+	pcpu->wz = IY + (int8_t)pcpu->wz;
 	pcpu->op3 = z80_read(pcpu->pc++);
 	break;
       case 5:
       case 6:
 	switch (pcpu->op3) {
-	case 0x00: pcpu->b = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),b*/
-	case 0x01: pcpu->c = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),c*/
-	case 0x02: pcpu->d = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),d*/
-	case 0x03: pcpu->e = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),e*/
-	case 0x04: pcpu->h = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),h*/
-	case 0x05: pcpu->l = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),l*/
-	case 0x06:           mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d)  */
-	case 0x07: pcpu->a = mreg(pcpu, rlc, tmp16, 3); break; /*rlc (iy+d),a*/
+	case 0x00: pcpu->b = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),b*/
+	case 0x01: pcpu->c = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),c*/
+	case 0x02: pcpu->d = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),d*/
+	case 0x03: pcpu->e = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),e*/
+	case 0x04: pcpu->h = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),h*/
+	case 0x05: pcpu->l = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),l*/
+	case 0x06:           mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d)  */
+	case 0x07: pcpu->a = mreg(pcpu, rlc, pcpu->wz, 3); break;/*rlc (iy+d),a*/
 
-	case 0x08: pcpu->b = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),b*/
-	case 0x09: pcpu->c = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),c*/
-	case 0x0a: pcpu->d = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),d*/
-	case 0x0b: pcpu->e = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),e*/
-	case 0x0c: pcpu->h = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),h*/
-	case 0x0d: pcpu->l = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),l*/
-	case 0x0e:           mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d)  */
-	case 0x0f: pcpu->a = mreg(pcpu, rrc, tmp16, 3); break; /*rrc (iy+d),a*/
+	case 0x08: pcpu->b = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),b*/
+	case 0x09: pcpu->c = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),c*/
+	case 0x0a: pcpu->d = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),d*/
+	case 0x0b: pcpu->e = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),e*/
+	case 0x0c: pcpu->h = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),h*/
+	case 0x0d: pcpu->l = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),l*/
+	case 0x0e:           mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d)  */
+	case 0x0f: pcpu->a = mreg(pcpu, rrc, pcpu->wz, 3); break;/*rrc (iy+d),a*/
 
-	case 0x10: pcpu->b = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),b*/
-	case 0x11: pcpu->c = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),c*/
-	case 0x12: pcpu->d = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),d*/
-	case 0x13: pcpu->e = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),e*/
-	case 0x14: pcpu->h = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),h*/
-	case 0x15: pcpu->l = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),l*/
-	case 0x16:           mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d)  */
-	case 0x17: pcpu->a = mreg(pcpu, rl, tmp16, 3); break; /*rl (iy+d),a*/
+	case 0x10: pcpu->b = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),b*/
+	case 0x11: pcpu->c = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),c*/
+	case 0x12: pcpu->d = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),d*/
+	case 0x13: pcpu->e = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),e*/
+	case 0x14: pcpu->h = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),h*/
+	case 0x15: pcpu->l = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),l*/
+	case 0x16:           mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d)  */
+	case 0x17: pcpu->a = mreg(pcpu, rl, pcpu->wz, 3); break; /*rl (iy+d),a*/
 
-	case 0x18: pcpu->b = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),b*/
-	case 0x19: pcpu->c = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),c*/
-	case 0x1a: pcpu->d = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),d*/
-	case 0x1b: pcpu->e = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),e*/
-	case 0x1c: pcpu->h = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),h*/
-	case 0x1d: pcpu->l = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),l*/
-	case 0x1e:           mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d)  */
-	case 0x1f: pcpu->a = mreg(pcpu, rr, tmp16, 3); break; /*rr (iy+d),a*/
+	case 0x18: pcpu->b = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),b*/
+	case 0x19: pcpu->c = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),c*/
+	case 0x1a: pcpu->d = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),d*/
+	case 0x1b: pcpu->e = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),e*/
+	case 0x1c: pcpu->h = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),h*/
+	case 0x1d: pcpu->l = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),l*/
+	case 0x1e:           mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d)  */
+	case 0x1f: pcpu->a = mreg(pcpu, rr, pcpu->wz, 3); break; /*rr (iy+d),a*/
 
-	case 0x20: pcpu->b = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),b*/
-	case 0x21: pcpu->c = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),c*/
-	case 0x22: pcpu->d = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),d*/
-	case 0x23: pcpu->e = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),e*/
-	case 0x24: pcpu->h = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),h*/
-	case 0x25: pcpu->l = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),l*/
-	case 0x26:           mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d)  */
-	case 0x27: pcpu->a = mreg(pcpu, sla, tmp16, 3); break; /*sla (iy+d),a*/
+	case 0x20: pcpu->b = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),b*/
+	case 0x21: pcpu->c = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),c*/
+	case 0x22: pcpu->d = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),d*/
+	case 0x23: pcpu->e = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),e*/
+	case 0x24: pcpu->h = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),h*/
+	case 0x25: pcpu->l = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),l*/
+	case 0x26:           mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d)  */
+	case 0x27: pcpu->a = mreg(pcpu, sla, pcpu->wz, 3); break;/*sla (iy+d),a*/
 
-	case 0x28: pcpu->b = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),b*/
-	case 0x29: pcpu->c = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),c*/
-	case 0x2a: pcpu->d = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),d*/
-	case 0x2b: pcpu->e = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),e*/
-	case 0x2c: pcpu->h = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),h*/
-	case 0x2d: pcpu->l = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),l*/
-	case 0x2e:           mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d)  */
-	case 0x2f: pcpu->a = mreg(pcpu, sra, tmp16, 3); break; /*sra (iy+d),a*/
+	case 0x28: pcpu->b = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),b*/
+	case 0x29: pcpu->c = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),c*/
+	case 0x2a: pcpu->d = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),d*/
+	case 0x2b: pcpu->e = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),e*/
+	case 0x2c: pcpu->h = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),h*/
+	case 0x2d: pcpu->l = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),l*/
+	case 0x2e:           mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d)  */
+	case 0x2f: pcpu->a = mreg(pcpu, sra, pcpu->wz, 3); break;/*sra (iy+d),a*/
 
-	case 0x30: pcpu->b = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),b*/
-	case 0x31: pcpu->c = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),c*/
-	case 0x32: pcpu->d = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),d*/
-	case 0x33: pcpu->e = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),e*/
-	case 0x34: pcpu->h = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),h*/
-	case 0x35: pcpu->l = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),l*/
-	case 0x36:           mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d)  */
-	case 0x37: pcpu->a = mreg(pcpu, sll, tmp16, 3); break; /*sll (iy+d),a*/
+	case 0x30: pcpu->b = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),b*/
+	case 0x31: pcpu->c = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),c*/
+	case 0x32: pcpu->d = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),d*/
+	case 0x33: pcpu->e = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),e*/
+	case 0x34: pcpu->h = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),h*/
+	case 0x35: pcpu->l = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),l*/
+	case 0x36:           mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d)  */
+	case 0x37: pcpu->a = mreg(pcpu, sll, pcpu->wz, 3); break;/*sll (iy+d),a*/
 
-	case 0x38: pcpu->b = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),b*/
-	case 0x39: pcpu->c = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),c*/
-	case 0x3a: pcpu->d = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),d*/
-	case 0x3b: pcpu->e = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),e*/
-	case 0x3c: pcpu->h = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),h*/
-	case 0x3d: pcpu->l = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),l*/
-	case 0x3e:           mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d)  */
-	case 0x3f: pcpu->a = mreg(pcpu, srl, tmp16, 3); break; /*srl (iy+d),a*/
+	case 0x38: pcpu->b = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),b*/
+	case 0x39: pcpu->c = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),c*/
+	case 0x3a: pcpu->d = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),d*/
+	case 0x3b: pcpu->e = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),e*/
+	case 0x3c: pcpu->h = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),h*/
+	case 0x3d: pcpu->l = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),l*/
+	case 0x3e:           mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d)  */
+	case 0x3f: pcpu->a = mreg(pcpu, srl, pcpu->wz, 3); break;/*srl (iy+d),a*/
 
 	case 0x40:	case 0x41:	case 0x42:	case 0x43:
 	case 0x44:	case 0x45:	case 0x46:	case 0x47:
@@ -3283,139 +3258,139 @@ void exec_code(z80 *pcpu)
 	case 0x78:	case 0x79:	case 0x7a:	case 0x7b:
 	case 0x7c:	case 0x7d:	case 0x7e:	case 0x7f:
 	  /* bit n,(iy+d) */
-	  bitixy(pcpu, (pcpu->op3 >> 3) & 0x07, tmp16);
+	  bitixy(pcpu, (pcpu->op3 >> 3) & 0x07, pcpu->wz);
 	  pcpu->mcycle = 0;
 	  break;
 
-	case 0x80: pcpu->b = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),b*/
-	case 0x81: pcpu->c = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),c*/
-	case 0x82: pcpu->d = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),d*/
-	case 0x83: pcpu->e = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),e*/
-	case 0x84: pcpu->h = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),h*/
-	case 0x85: pcpu->l = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),l*/
-	case 0x86:           resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d)  */
-	case 0x87: pcpu->a = resm(pcpu, 0, tmp16, 2); break; /*res 0,(iy+d),a*/
-	case 0x88: pcpu->b = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),b*/
-	case 0x89: pcpu->c = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),c*/
-	case 0x8a: pcpu->d = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),d*/
-	case 0x8b: pcpu->e = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),e*/
-	case 0x8c: pcpu->h = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),h*/
-	case 0x8d: pcpu->l = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),l*/
-	case 0x8e:           resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d)  */
-	case 0x8f: pcpu->a = resm(pcpu, 1, tmp16, 2); break; /*res 1,(iy+d),a*/
-	case 0x90: pcpu->b = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),b*/
-	case 0x91: pcpu->c = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),c*/
-	case 0x92: pcpu->d = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),d*/
-	case 0x93: pcpu->e = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),e*/
-	case 0x94: pcpu->h = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),h*/
-	case 0x95: pcpu->l = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),l*/
-	case 0x96:           resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d)  */
-	case 0x97: pcpu->a = resm(pcpu, 2, tmp16, 2); break; /*res 2,(iy+d),a*/
-	case 0x98: pcpu->b = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),b*/
-	case 0x99: pcpu->c = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),c*/
-	case 0x9a: pcpu->d = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),d*/
-	case 0x9b: pcpu->e = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),e*/
-	case 0x9c: pcpu->h = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),h*/
-	case 0x9d: pcpu->l = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),l*/
-	case 0x9e:           resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d)  */
-	case 0x9f: pcpu->a = resm(pcpu, 3, tmp16, 2); break; /*res 3,(iy+d),a*/
-	case 0xa0: pcpu->b = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),b*/
-	case 0xa1: pcpu->c = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),c*/
-	case 0xa2: pcpu->d = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),d*/
-	case 0xa3: pcpu->e = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),e*/
-	case 0xa4: pcpu->h = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),h*/
-	case 0xa5: pcpu->l = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),l*/
-	case 0xa6:           resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d)  */
-	case 0xa7: pcpu->a = resm(pcpu, 4, tmp16, 2); break; /*res 4,(iy+d),a*/
-	case 0xa8: pcpu->b = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),b*/
-	case 0xa9: pcpu->c = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),c*/
-	case 0xaa: pcpu->d = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),d*/
-	case 0xab: pcpu->e = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),e*/
-	case 0xac: pcpu->h = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),h*/
-	case 0xad: pcpu->l = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),l*/
-	case 0xae:           resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d)  */
-	case 0xaf: pcpu->a = resm(pcpu, 5, tmp16, 2); break; /*res 5,(iy+d),a*/
-	case 0xb0: pcpu->b = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),b*/
-	case 0xb1: pcpu->c = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),c*/
-	case 0xb2: pcpu->d = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),d*/
-	case 0xb3: pcpu->e = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),e*/
-	case 0xb4: pcpu->h = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),h*/
-	case 0xb5: pcpu->l = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),l*/
-	case 0xb6:           resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d)  */
-	case 0xb7: pcpu->a = resm(pcpu, 6, tmp16, 2); break; /*res 6,(iy+d),a*/
-	case 0xb8: pcpu->b = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),b*/
-	case 0xb9: pcpu->c = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),c*/
-	case 0xba: pcpu->d = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),d*/
-	case 0xbb: pcpu->e = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),e*/
-	case 0xbc: pcpu->h = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),h*/
-	case 0xbd: pcpu->l = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),l*/
-	case 0xbe:           resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d)  */
-	case 0xbf: pcpu->a = resm(pcpu, 7, tmp16, 2); break; /*res 7,(iy+d),a*/
+	case 0x80: pcpu->b = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),b*/
+	case 0x81: pcpu->c = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),c*/
+	case 0x82: pcpu->d = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),d*/
+	case 0x83: pcpu->e = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),e*/
+	case 0x84: pcpu->h = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),h*/
+	case 0x85: pcpu->l = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),l*/
+	case 0x86:           resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d)  */
+	case 0x87: pcpu->a = resm(pcpu, 0, pcpu->wz, 2); break;/*res 0,(iy+d),a*/
+	case 0x88: pcpu->b = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),b*/
+	case 0x89: pcpu->c = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),c*/
+	case 0x8a: pcpu->d = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),d*/
+	case 0x8b: pcpu->e = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),e*/
+	case 0x8c: pcpu->h = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),h*/
+	case 0x8d: pcpu->l = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),l*/
+	case 0x8e:           resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d)  */
+	case 0x8f: pcpu->a = resm(pcpu, 1, pcpu->wz, 2); break;/*res 1,(iy+d),a*/
+	case 0x90: pcpu->b = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),b*/
+	case 0x91: pcpu->c = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),c*/
+	case 0x92: pcpu->d = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),d*/
+	case 0x93: pcpu->e = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),e*/
+	case 0x94: pcpu->h = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),h*/
+	case 0x95: pcpu->l = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),l*/
+	case 0x96:           resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d)  */
+	case 0x97: pcpu->a = resm(pcpu, 2, pcpu->wz, 2); break;/*res 2,(iy+d),a*/
+	case 0x98: pcpu->b = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),b*/
+	case 0x99: pcpu->c = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),c*/
+	case 0x9a: pcpu->d = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),d*/
+	case 0x9b: pcpu->e = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),e*/
+	case 0x9c: pcpu->h = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),h*/
+	case 0x9d: pcpu->l = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),l*/
+	case 0x9e:           resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d)  */
+	case 0x9f: pcpu->a = resm(pcpu, 3, pcpu->wz, 2); break;/*res 3,(iy+d),a*/
+	case 0xa0: pcpu->b = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),b*/
+	case 0xa1: pcpu->c = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),c*/
+	case 0xa2: pcpu->d = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),d*/
+	case 0xa3: pcpu->e = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),e*/
+	case 0xa4: pcpu->h = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),h*/
+	case 0xa5: pcpu->l = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),l*/
+	case 0xa6:           resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d)  */
+	case 0xa7: pcpu->a = resm(pcpu, 4, pcpu->wz, 2); break;/*res 4,(iy+d),a*/
+	case 0xa8: pcpu->b = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),b*/
+	case 0xa9: pcpu->c = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),c*/
+	case 0xaa: pcpu->d = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),d*/
+	case 0xab: pcpu->e = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),e*/
+	case 0xac: pcpu->h = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),h*/
+	case 0xad: pcpu->l = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),l*/
+	case 0xae:           resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d)  */
+	case 0xaf: pcpu->a = resm(pcpu, 5, pcpu->wz, 2); break;/*res 5,(iy+d),a*/
+	case 0xb0: pcpu->b = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),b*/
+	case 0xb1: pcpu->c = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),c*/
+	case 0xb2: pcpu->d = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),d*/
+	case 0xb3: pcpu->e = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),e*/
+	case 0xb4: pcpu->h = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),h*/
+	case 0xb5: pcpu->l = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),l*/
+	case 0xb6:           resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d)  */
+	case 0xb7: pcpu->a = resm(pcpu, 6, pcpu->wz, 2); break;/*res 6,(iy+d),a*/
+	case 0xb8: pcpu->b = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),b*/
+	case 0xb9: pcpu->c = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),c*/
+	case 0xba: pcpu->d = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),d*/
+	case 0xbb: pcpu->e = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),e*/
+	case 0xbc: pcpu->h = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),h*/
+	case 0xbd: pcpu->l = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),l*/
+	case 0xbe:           resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d)  */
+	case 0xbf: pcpu->a = resm(pcpu, 7, pcpu->wz, 2); break;/*res 7,(iy+d),a*/
 
-	case 0xc0: pcpu->b = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),b*/
-	case 0xc1: pcpu->c = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),c*/
-	case 0xc2: pcpu->d = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),d*/
-	case 0xc3: pcpu->e = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),e*/
-	case 0xc4: pcpu->h = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),h*/
-	case 0xc5: pcpu->l = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),l*/
-	case 0xc6:           setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d)  */
-	case 0xc7: pcpu->a = setm(pcpu, 0, tmp16, 2); break; /*set 0,(iy+d),a*/
-	case 0xc8: pcpu->b = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),b*/
-	case 0xc9: pcpu->c = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),c*/
-	case 0xca: pcpu->d = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),d*/
-	case 0xcb: pcpu->e = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),e*/
-	case 0xcc: pcpu->h = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),h*/
-	case 0xcd: pcpu->l = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),l*/
-	case 0xce:           setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d)  */
-	case 0xcf: pcpu->a = setm(pcpu, 1, tmp16, 2); break; /*set 1,(iy+d),a*/
-	case 0xd0: pcpu->b = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),b*/
-	case 0xd1: pcpu->c = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),c*/
-	case 0xd2: pcpu->d = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),d*/
-	case 0xd3: pcpu->e = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),e*/
-	case 0xd4: pcpu->h = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),h*/
-	case 0xd5: pcpu->l = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),l*/
-	case 0xd6:           setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d)  */
-	case 0xd7: pcpu->a = setm(pcpu, 2, tmp16, 2); break; /*set 2,(iy+d),a*/
-	case 0xd8: pcpu->b = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),b*/
-	case 0xd9: pcpu->c = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),c*/
-	case 0xda: pcpu->d = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),d*/
-	case 0xdb: pcpu->e = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),e*/
-	case 0xdc: pcpu->h = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),h*/
-	case 0xdd: pcpu->l = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),l*/
-	case 0xde:           setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d)  */
-	case 0xdf: pcpu->a = setm(pcpu, 3, tmp16, 2); break; /*set 3,(iy+d),a*/
-	case 0xe0: pcpu->b = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),b*/
-	case 0xe1: pcpu->c = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),c*/
-	case 0xe2: pcpu->d = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),d*/
-	case 0xe3: pcpu->e = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),e*/
-	case 0xe4: pcpu->h = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),h*/
-	case 0xe5: pcpu->l = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),l*/
-	case 0xe6:           setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d)  */
-	case 0xe7: pcpu->a = setm(pcpu, 4, tmp16, 2); break; /*set 4,(iy+d),a*/
-	case 0xe8: pcpu->b = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),b*/
-	case 0xe9: pcpu->c = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),c*/
-	case 0xea: pcpu->d = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),d*/
-	case 0xeb: pcpu->e = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),e*/
-	case 0xec: pcpu->h = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),h*/
-	case 0xed: pcpu->l = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),l*/
-	case 0xee:           setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d)  */
-	case 0xef: pcpu->a = setm(pcpu, 5, tmp16, 2); break; /*set 5,(iy+d),a*/
-	case 0xf0: pcpu->b = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),b*/
-	case 0xf1: pcpu->c = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),c*/
-	case 0xf2: pcpu->d = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),d*/
-	case 0xf3: pcpu->e = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),e*/
-	case 0xf4: pcpu->h = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),h*/
-	case 0xf5: pcpu->l = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),l*/
-	case 0xf6:           setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d)  */
-	case 0xf7: pcpu->a = setm(pcpu, 6, tmp16, 2); break; /*set 6,(iy+d),a*/
-	case 0xf8: pcpu->b = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),b*/
-	case 0xf9: pcpu->c = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),c*/
-	case 0xfa: pcpu->d = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),d*/
-	case 0xfb: pcpu->e = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),e*/
-	case 0xfc: pcpu->h = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),h*/
-	case 0xfd: pcpu->l = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),l*/
-	case 0xfe:           setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d)  */
-	case 0xff: pcpu->a = setm(pcpu, 7, tmp16, 2); break; /*set 7,(iy+d),a*/
+	case 0xc0: pcpu->b = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),b*/
+	case 0xc1: pcpu->c = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),c*/
+	case 0xc2: pcpu->d = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),d*/
+	case 0xc3: pcpu->e = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),e*/
+	case 0xc4: pcpu->h = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),h*/
+	case 0xc5: pcpu->l = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),l*/
+	case 0xc6:           setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d)  */
+	case 0xc7: pcpu->a = setm(pcpu, 0, pcpu->wz, 2); break;/*set 0,(iy+d),a*/
+	case 0xc8: pcpu->b = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),b*/
+	case 0xc9: pcpu->c = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),c*/
+	case 0xca: pcpu->d = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),d*/
+	case 0xcb: pcpu->e = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),e*/
+	case 0xcc: pcpu->h = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),h*/
+	case 0xcd: pcpu->l = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),l*/
+	case 0xce:           setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d)  */
+	case 0xcf: pcpu->a = setm(pcpu, 1, pcpu->wz, 2); break;/*set 1,(iy+d),a*/
+	case 0xd0: pcpu->b = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),b*/
+	case 0xd1: pcpu->c = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),c*/
+	case 0xd2: pcpu->d = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),d*/
+	case 0xd3: pcpu->e = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),e*/
+	case 0xd4: pcpu->h = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),h*/
+	case 0xd5: pcpu->l = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),l*/
+	case 0xd6:           setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d)  */
+	case 0xd7: pcpu->a = setm(pcpu, 2, pcpu->wz, 2); break;/*set 2,(iy+d),a*/
+	case 0xd8: pcpu->b = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),b*/
+	case 0xd9: pcpu->c = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),c*/
+	case 0xda: pcpu->d = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),d*/
+	case 0xdb: pcpu->e = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),e*/
+	case 0xdc: pcpu->h = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),h*/
+	case 0xdd: pcpu->l = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),l*/
+	case 0xde:           setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d)  */
+	case 0xdf: pcpu->a = setm(pcpu, 3, pcpu->wz, 2); break;/*set 3,(iy+d),a*/
+	case 0xe0: pcpu->b = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),b*/
+	case 0xe1: pcpu->c = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),c*/
+	case 0xe2: pcpu->d = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),d*/
+	case 0xe3: pcpu->e = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),e*/
+	case 0xe4: pcpu->h = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),h*/
+	case 0xe5: pcpu->l = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),l*/
+	case 0xe6:           setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d)  */
+	case 0xe7: pcpu->a = setm(pcpu, 4, pcpu->wz, 2); break;/*set 4,(iy+d),a*/
+	case 0xe8: pcpu->b = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),b*/
+	case 0xe9: pcpu->c = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),c*/
+	case 0xea: pcpu->d = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),d*/
+	case 0xeb: pcpu->e = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),e*/
+	case 0xec: pcpu->h = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),h*/
+	case 0xed: pcpu->l = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),l*/
+	case 0xee:           setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d)  */
+	case 0xef: pcpu->a = setm(pcpu, 5, pcpu->wz, 2); break;/*set 5,(iy+d),a*/
+	case 0xf0: pcpu->b = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),b*/
+	case 0xf1: pcpu->c = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),c*/
+	case 0xf2: pcpu->d = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),d*/
+	case 0xf3: pcpu->e = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),e*/
+	case 0xf4: pcpu->h = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),h*/
+	case 0xf5: pcpu->l = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),l*/
+	case 0xf6:           setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d)  */
+	case 0xf7: pcpu->a = setm(pcpu, 6, pcpu->wz, 2); break;/*set 6,(iy+d),a*/
+	case 0xf8: pcpu->b = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),b*/
+	case 0xf9: pcpu->c = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),c*/
+	case 0xfa: pcpu->d = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),d*/
+	case 0xfb: pcpu->e = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),e*/
+	case 0xfc: pcpu->h = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),h*/
+	case 0xfd: pcpu->l = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),l*/
+	case 0xfe:           setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d)  */
+	case 0xff: pcpu->a = setm(pcpu, 7, pcpu->wz, 2); break;/*set 7,(iy+d),a*/
 	}
       }
       break;						/* FDCB prefix end */
@@ -3430,6 +3405,7 @@ void exec_code(z80 *pcpu)
   }
 
 }
+
 
 /*
  * search Z80 machine code
@@ -3545,7 +3521,7 @@ static inline void inc(z80 *pcpu, byte *var8)
 {
   (*var8)++;
   pcpu->f
-    = ((*var8 & 0x80) ? SF : 0)
+    = (*var8 & SF)
     | (*var8 ? 0: ZF)
     | (*var8 & YF)
     | ((*var8 & 0x0f) ? 0 : HF)
@@ -3561,7 +3537,7 @@ static inline void dec(z80 *pcpu, byte *var8)
 {
   (*var8)--;
   pcpu->f
-    = ((*var8 & 0x80) ? SF : 0)
+    = (*var8 & SF)
     | (*var8 ? 0: ZF)
     | (*var8 & YF)
     | (((*var8 & 0x0f) == 0x0f) ? HF : 0)
@@ -3605,14 +3581,11 @@ static inline void ldrn(z80 *pcpu, byte *var8)
 /* LD (IX+d),r */
 static inline void ldixr(z80 *pcpu, byte val8)
 {
-  static byte tmp8;
-  static word tmp16;
-
   switch (pcpu->mcycle) {
-  case 2:							break;
-  case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-  case 4:	tmp16 = (word)((int32_t)IX + (int8_t)tmp8);	break;
-  case 5:	z80_write(tmp16, val8);				break;
+  case 2:						break;
+  case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+  case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+  case 5:	z80_write(pcpu->wz, val8);		break;
   }
 }
 
@@ -3620,14 +3593,11 @@ static inline void ldixr(z80 *pcpu, byte val8)
 /* LD (IY+d),r */
 static inline void ldiyr(z80 *pcpu, byte val8)
 {
-  static byte tmp8;
-  static word tmp16;
-
   switch (pcpu->mcycle) {
-  case 2:							break;
-  case 3:	tmp8 = z80_read(pcpu->pc++);			break;
-  case 4:	tmp16 = (word)((int32_t)IY + (int8_t)tmp8);	break;
-  case 5:	z80_write(tmp16, val8);				break;
+  case 2:						break;
+  case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+  case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+  case 5:	z80_write(pcpu->wz, val8);		break;
   }
 }
 
@@ -3635,22 +3605,11 @@ static inline void ldiyr(z80 *pcpu, byte val8)
 /* LD r,(IX+d) */
 static inline void ldrix(z80 *pcpu, byte *var8)
 {
-  static byte tmp8;
-  static word tmp16;
-
   switch (pcpu->mcycle) {
-  case 2:
-    break;
-  case 3:
-    tmp8 = z80_read(pcpu->pc++);
-    break;
-  case 4:
-    tmp16 = (word)((int32_t)IX + (int8_t)tmp8);
-    break;
-  case 5:
-    *var8 = z80_read(tmp16);
-    pcpu->internal = tmp16 >> 8;
-    break;
+  case 2:						break;
+  case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+  case 4:	pcpu->wz = IX + (int8_t)pcpu->wz;	break;
+  case 5:	*var8 = z80_read(pcpu->wz);		break;
   }
 }
 
@@ -3658,22 +3617,11 @@ static inline void ldrix(z80 *pcpu, byte *var8)
 /* LD r,(IY+d) */
 static inline void ldriy(z80 *pcpu, byte *var8)
 {
-  static byte tmp8;
-  static word tmp16;
-
   switch (pcpu->mcycle) {
-  case 2:
-    break;
-  case 3:
-    tmp8 = z80_read(pcpu->pc++);
-    break;
-  case 4:
-    tmp16 = (word)((int32_t)IY + (int8_t)tmp8);
-    break;
-  case 5:
-    *var8 = z80_read(tmp16);
-    pcpu->internal = tmp16 >> 8;
-    break;
+  case 2:						break;
+  case 3:	pcpu->wz = z80_read(pcpu->pc++);	break;
+  case 4:	pcpu->wz = IY + (int8_t)pcpu->wz;	break;
+  case 5:	*var8 = z80_read(pcpu->wz);		break;
   }
 }
 
@@ -3694,8 +3642,10 @@ static inline void addw(z80 *pcpu, byte *high, byte *low, word val16)
   case 1:
     break;
   case 2:
-    pcpu->internal = val16 >> 8;
-    tmp32 = *low + (*high << 8) + val16;
+    //    pcpu->wz = val16;
+    //    tmp32 = *low + (*high << 8) + val16;
+    pcpu->wz = *low + (*high << 8);
+    tmp32 = pcpu->wz++ + val16;
     break;
   case 3:
     pcpu->f
@@ -3734,10 +3684,8 @@ static inline void decw(byte *high, byte *low)
 /* JR e */
 static inline void jr(z80 *pcpu, byte val8)
 {
-  word tmp16;
-  tmp16 = pcpu->pc + ((val8 < 0x80) ? val8 : (val8 - 0x100));
-  pcpu->internal = tmp16 >> 8;
-  pcpu->pc = tmp16;
+  pcpu->wz = pcpu->pc + (int8_t)val8;
+  pcpu->pc = pcpu->wz;
 }
 
 
@@ -3785,76 +3733,76 @@ static inline void ldhlr(z80 *pcpu, byte val8)
 /* ADD A, */
 static inline void add(z80 *pcpu, byte val8)
 {
-  word tmp16;
+  byte tmp8;
 
-  tmp16 = pcpu->a + val8;
+  tmp8 = pcpu->a + val8;
   pcpu->f
-    = ((tmp16 & 0x80) ? SF : 0)
-    | ((tmp16 & 0xff) ? 0 : ZF)
-    | (tmp16 & YF)
-    | ((pcpu->a ^ val8 ^ tmp16) & HF)
-    | (tmp16 & XF)
-    | (((pcpu->a ^ tmp16) & (val8 ^ tmp16) & 0x80) ? VF : 0)
+    = (tmp8 & SF)
+    | (tmp8 ? 0 : ZF)
+    | (tmp8 & YF)
+    | ((pcpu->a ^ val8 ^ tmp8) & HF)
+    | (tmp8 & XF)
+    | (((pcpu->a ^ tmp8) & (val8 ^ tmp8) & 0x80) ? VF : 0)
     | 0
-    | ((tmp16 & 0x100) ? CF : 0);
-  pcpu->a = tmp16 & 0xff;
+    | (pcpu->a + val8 > 0xff ? CF : 0);
+  pcpu->a = tmp8;
 }
 
 
 /* ADC A, */
 static inline void adc(z80 *pcpu, byte val8)
 {
-  word tmp16;
+  byte tmp8;
 
-  tmp16 = pcpu->a + val8 + (pcpu->f & CF);
+  tmp8 = pcpu->a + val8 + (pcpu->f & CF);
   pcpu->f
-    = (tmp16 & SF)
-    | ((tmp16 & 0xff) ? 0: ZF)
-    | (tmp16 & YF)
-    | ((pcpu->a ^ val8 ^ tmp16) & HF)
-    | (tmp16 & XF)
-    | (((pcpu->a ^ tmp16) & (val8 ^ tmp16) & 0x80) ? VF : 0)
+    = (tmp8 & SF)
+    | (tmp8 ? 0: ZF)
+    | (tmp8 & YF)
+    | ((pcpu->a ^ val8 ^ tmp8) & HF)
+    | (tmp8 & XF)
+    | (((pcpu->a ^ tmp8) & (val8 ^ tmp8) & 0x80) ? VF : 0)
     | 0
-    | ((tmp16 & 0x100) ? CF : 0);
-  pcpu->a = tmp16 & 0xff;
+    | (pcpu->a + val8 + (pcpu->f & CF) > 0xff ? CF : 0);
+  pcpu->a = tmp8;
 }
 
 
 /* SUB */
 static inline void sub(z80 *pcpu, byte val8)
 {
-  word tmp16;
+  byte tmp8;
 
-  tmp16 = pcpu->a - val8;
+  tmp8 = pcpu->a - val8;
   pcpu->f
-    = (tmp16 & SF)
-    | (tmp16 ? 0: ZF)
-    | (tmp16 & YF)
-    | ((pcpu->a ^ val8 ^ tmp16) & HF)
-    | (tmp16 & XF)
-    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp16) & 0x80) ? VF : 0)
+    = (tmp8 & SF)
+    | (tmp8 ? 0: ZF)
+    | (tmp8 & YF)
+    | ((pcpu->a ^ val8 ^ tmp8) & HF)
+    | (tmp8 & XF)
+    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp8) & 0x80) ? VF : 0)
     | NF
     | ((pcpu->a < val8) ? CF : 0);
-  pcpu->a = tmp16 & 0xff;
+  pcpu->a = tmp8;
 }
 
 
 /* SBC A, */
 static inline void sbc(z80 *pcpu, byte val8)
 {
-  word tmp16;
+  byte tmp8;
 
-  tmp16 = pcpu->a - val8 - (pcpu->f & CF);
+  tmp8 = pcpu->a - val8 - (pcpu->f & CF);
   pcpu->f
-    = (tmp16 & SF)
-    | ((tmp16 & 0xff) ? 0: ZF)
-    | (tmp16 & YF)
-    | ((pcpu->a ^ val8 ^ tmp16) & HF)
-    | (tmp16 & XF)
-    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp16) & 0x80) ? VF : 0)
+    = (tmp8 & SF)
+    | (tmp8 ? 0: ZF)
+    | (tmp8 & YF)
+    | ((pcpu->a ^ val8 ^ tmp8) & HF)
+    | (tmp8 & XF)
+    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp8) & 0x80) ? VF : 0)
     | NF
     | ((pcpu->a < val8 + (pcpu->f & CF)) ? CF : 0);
-  pcpu->a = tmp16 & 0xff;
+  pcpu->a = tmp8;
 }
 
 
@@ -3872,7 +3820,7 @@ static inline void xor(z80 *pcpu, byte val8)
   pcpu->a = pcpu->a ^ val8;
   pcpu->f = newflags[pcpu->a];
 }
-	  
+
 
 /* OR */
 static inline void or(z80 *pcpu, byte val8)
@@ -3885,16 +3833,16 @@ static inline void or(z80 *pcpu, byte val8)
 /* CP */
 static inline void cp(z80 *pcpu, byte val8)
 {
-  word tmp16;
+  byte tmp8;
 
-  tmp16 = pcpu->a - val8;
+  tmp8 = pcpu->a - val8;
   pcpu->f
-    = (tmp16 & SF)
-    | (tmp16 ? 0 : ZF)
+    = (tmp8 & SF)
+    | (tmp8 ? 0 : ZF)
     | (val8 & YF)
-    | ((pcpu->a ^ val8 ^ tmp16) & HF)
+    | ((pcpu->a ^ val8 ^ tmp8) & HF)
     | (val8 & XF)
-    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp16) & 0x80) ? VF : 0)
+    | (((pcpu->a ^ val8) & (pcpu->a ^ tmp8) & 0x80) ? VF : 0)
     | NF
     | ((pcpu->a < val8) ? CF : 0);
 }
@@ -3903,16 +3851,17 @@ static inline void cp(z80 *pcpu, byte val8)
 /* RET cc */
 static inline void retcnd(z80 *pcpu, byte flag, byte condition, int offset)
 {
-  static byte tmp8;
-
   switch (pcpu->mcycle + offset) {
   case 1:
     if ((pcpu->f & flag) != condition) {
       pcpu->mcycle = 0;
     }
     break;
-  case 2:	tmp8 = z80_read(pcpu->sp++);			break;
-  case 3:	pcpu->pc = tmp8 + (z80_read(pcpu->sp++) << 8);	break;
+  case 2:	pcpu->wz = z80_read(pcpu->sp++);			break;
+  case 3:
+    pcpu->wz += z80_read(pcpu->sp++) << 8;
+    pcpu->pc = pcpu->wz;
+    break;
   }
 }
 
@@ -3964,18 +3913,16 @@ static inline void popixiy(z80 *pcpu, byte *high, byte *low)
 /* JP cc, */
 static inline void jpcnd(z80 *pcpu, byte flag, byte condition)
 {
-  static word tmp16;
-
   switch (pcpu->mcycle) {
   case 1:
     break;
   case 2:
-    tmp16 = z80_read(pcpu->pc++);
+    pcpu->wz = z80_read(pcpu->pc++);
     break;
   case 3:
-    tmp16 += z80_read(pcpu->pc++) << 8;
+    pcpu->wz += z80_read(pcpu->pc++) << 8;
     if ((pcpu->f & flag) == condition) {
-      pcpu->pc = tmp16;
+      pcpu->pc = pcpu->wz;
     }
     break;
   }
@@ -3985,16 +3932,14 @@ static inline void jpcnd(z80 *pcpu, byte flag, byte condition)
 /* CALL cc, */
 static inline void callcnd(z80 *pcpu, byte flag, byte condition)
 {
-  static word tmp16;
-
   switch (pcpu->mcycle) {
   case 1:
     break;
   case 2:
-    tmp16 = z80_read(pcpu->pc++);
+    pcpu->wz = z80_read(pcpu->pc++);
     break;
   case 3:
-    tmp16 += z80_read(pcpu->pc++) << 8;
+    pcpu->wz += z80_read(pcpu->pc++) << 8;
     if ((pcpu->f & flag) != condition) {
       pcpu->cycles -= 1;
       pcpu->mcycle = 0;
@@ -4005,8 +3950,8 @@ static inline void callcnd(z80 *pcpu, byte flag, byte condition)
     break;
   case 5:
     z80_write(--pcpu->sp, pcpu->pc & 0xff);
-    pcpu->pc = tmp16;
-    break;      
+    pcpu->pc = pcpu->wz;
+    break;
   }
 }
 
@@ -4018,12 +3963,13 @@ static inline void rst(z80 *pcpu, word address)
   case 1:
     break;
   case 2:
+    pcpu->wz = address;
     z80_write(--pcpu->sp, pcpu->pc >> 8);
     break;
   case 3:
     z80_write(--pcpu->sp, pcpu->pc & 0xff);
-    pcpu->pc = address;
-    break;      
+    pcpu->pc = pcpu->wz;
+    break;
   }
 }
 
@@ -4035,7 +3981,8 @@ static inline void sbchl(z80 *pcpu, word val16)
 
   switch (pcpu->mcycle) {
   case 3:
-    tmp32 = HL - val16 - (pcpu->f & CF);
+    pcpu->wz = HL;
+    tmp32 = pcpu->wz++ - val16 - (pcpu->f & CF);
     pcpu->f
       = ((tmp32 >> 8) & SF)
       | ((tmp32 & 0xffff) ? 0 : ZF)
@@ -4061,7 +4008,8 @@ static inline void adchl(z80 *pcpu, word val16)
 
   switch (pcpu->mcycle) {
   case 3:
-    tmp32 = HL + val16 + (pcpu->f & CF);
+    pcpu->wz = HL;
+    tmp32 = pcpu->wz++ + val16 + (pcpu->f & CF);
     pcpu->f
       = ((tmp32 >> 8) & SF)
       | ((tmp32 & 0xffff) ? 0 : ZF)
@@ -4151,6 +4099,52 @@ static inline void cpd(z80 *pcpu)
 }
 
 
+/* CPI/CPIR */
+static inline void cpir(z80 *pcpu, int repeat)
+{
+  block_search(pcpu);
+  switch (pcpu->mcycle) {
+  case 4:
+    incw(&pcpu->h, &pcpu->l);
+    if ((pcpu->f & PF) == 0 || (pcpu->f & ZF)) {
+      pcpu->mcycle = 0;
+      repeat = 0;
+    }
+    if (repeat == 0) {
+      pcpu->wz++;
+    }
+    break;
+  case 5:	/* for CPIR */
+    pcpu->wz = pcpu->pc - 2;
+    pcpu->pc = pcpu->wz++;
+    break;
+  }
+}
+
+
+/* CPD/CPDR */
+static inline void cpdr(z80 *pcpu, int repeat)
+{
+  block_search(pcpu);
+  switch (pcpu->mcycle) {
+  case 4:
+    decw(&pcpu->h, &pcpu->l);
+    if ((pcpu->f & PF) == 0 || (pcpu->f & ZF)) {
+      pcpu->mcycle = 0;
+      repeat = 0;
+    }
+    if (repeat == 0) {
+      pcpu->wz--;
+    }
+    break;
+  case 5:	/* for CPDR */
+    pcpu->wz = pcpu->pc - 2;
+    pcpu->pc = pcpu->wz++;
+    break;
+  }
+}
+
+
 /* block search for CPI/CPD */
 static inline void block_search(z80 *pcpu)
 {
@@ -4192,29 +4186,14 @@ static inline void repbc(z80 *pcpu)
     }
     break;
   case 5:
-    pcpu->pc -= 2;
+    pcpu->wz = pcpu->pc - 2;
+    pcpu->pc = pcpu->wz++;
     break;
   }
 }
 
 
-/* repeat for CPIR/CPDR */
-static inline void repcp(z80 *pcpu)
-{
-  switch (pcpu->mcycle) {
-  case 4:
-    if ((pcpu->f & PF) == 0 || (pcpu->f & ZF)) {
-      pcpu->mcycle = 0;
-    }
-    break;
-  case 5:
-    pcpu->pc -= 2;
-    break;
-  }
-}
-
-
-/* repeat for INIR/INDR/OUTIR/OUTDR */
+/* repeat for INIR/INDR/OTIR/OTDR */
 static inline void repb(z80 *pcpu)
 {
   switch (pcpu->mcycle) {
@@ -4229,18 +4208,20 @@ static inline void repb(z80 *pcpu)
   }
 }
 
-  /* INI */
+
+/* INI */
 static inline void ini(z80 *pcpu)
 {
   byte tmp8;
   word tmp16;
-  
+
   tmp8 = block_input(pcpu);
   if (pcpu->mcycle == 4) {
     incw(&pcpu->h, &pcpu->l);
+    pcpu->wz++;
     tmp16 = tmp8 + ((pcpu->c + 1) & 0xff);
     pcpu->f
-      = ((pcpu->b & 0x80) ? SF : 0)
+      = (pcpu->b & SF)
       | (pcpu->b ? 0 : ZF)
       | (pcpu->b & YF)
       | ((tmp16 > 0xff) ? HF : 0)
@@ -4257,13 +4238,14 @@ static inline void ind(z80 *pcpu)
 {
   byte tmp8;
   word tmp16;
-  
+
   tmp8 = block_input(pcpu);
   if (pcpu->mcycle == 4) {
     decw(&pcpu->h, &pcpu->l);
+    pcpu->wz--;
     tmp16 = tmp8 + ((pcpu->c - 1) & 0xff);
     pcpu->f
-      = ((pcpu->b & 0x80) ? SF : 0)
+      = (pcpu->b & SF)
       | (pcpu->b ? 0 : ZF)
       | (pcpu->b & YF)
       | ((tmp16 > 0xff) ? HF : 0)
@@ -4284,7 +4266,8 @@ static inline byte block_input(z80 *pcpu)
   case 2:
     break;
   case 3:
-    tmp8 = z80_in(BC);
+    pcpu->wz = BC;
+    tmp8 = z80_in(pcpu->wz);
     break;
   case 4:
     z80_write(HL, tmp8);
@@ -4305,9 +4288,10 @@ static inline void outi(z80 *pcpu)
   tmp8 = block_output(pcpu);
   if (pcpu->mcycle == 4) {
     incw(&pcpu->h, &pcpu->l);
+    pcpu->wz++;
     tmp16 = tmp8 + pcpu->l;
     pcpu->f
-      = ((pcpu->b & 0x80) ? SF : 0)
+      = (pcpu->b & SF)
       | (pcpu->b ? 0 : ZF)
       | (pcpu->b & YF)
       | ((tmp16 > 0xff) ? HF : 0)
@@ -4328,9 +4312,10 @@ static inline void outd(z80 *pcpu)
   tmp8 = block_output(pcpu);
   if (pcpu->mcycle == 4) {
     decw(&pcpu->h, &pcpu->l);
+    pcpu->wz--;
     tmp16 = tmp8 + pcpu->l;
     pcpu->f
-      = ((pcpu->b & 0x80) ? SF : 0)
+      = (pcpu->b & SF)
       | (pcpu->b ? 0 : ZF)
       | (pcpu->b & YF)
       | ((tmp16 > 0xff) ? HF : 0)
@@ -4348,13 +4333,20 @@ static inline byte block_output(z80 *pcpu)
   static byte tmp8;
 
   switch (pcpu->mcycle) {
-  case 2:						break;
-  case 3:	tmp8 = z80_read(HL);			break;
-  case 4:	pcpu->b--;	z80_out(BC, tmp8);	break;
+  case 2:
+    break;
+  case 3:
+    tmp8 = z80_read(HL);
+    break;
+  case 4:
+    pcpu->b--;
+    pcpu->wz = BC;
+    z80_out(pcpu->wz, tmp8);	break;
   }
 
   return tmp8;
 }
+
 
 /* RLC */
 static inline void rlc(z80 *pcpu, byte *var8)
@@ -4452,11 +4444,11 @@ static inline void bit(z80 *pcpu, int n, byte val8)
 }
 
 
-/* BIT *,(HL) */
+/* BIT n,(HL) */
 static inline void bitm(z80 *pcpu, int n)
 {
   byte tmp8;
-  
+
   switch (pcpu->mcycle) {
   case 2:
     break;
@@ -4465,9 +4457,9 @@ static inline void bitm(z80 *pcpu, int n)
     pcpu->f
       = (tmp8 & SF)
       | (tmp8 ? 0 : ZF)
-      | (pcpu->internal & YF)
+      | ((pcpu->wz >> 8) & YF)
       | HF
-      | (pcpu->internal & XF)
+      | ((pcpu->wz >> 8) & XF)
       | (tmp8 ? 0 : PF)
       | 0
       | (pcpu->f & CF);
@@ -4475,11 +4467,12 @@ static inline void bitm(z80 *pcpu, int n)
   }
 }
 
-/* RES *,(HL)/(IX+d)/(IY+d) */
+
+/* RES n,(HL)/(IX+d)/(IY+d) */
 static inline byte resm(z80 *pcpu, int n, word address, int offset)
 {
   static byte tmp8;
-  
+
   switch (pcpu->mcycle - offset) {
   case 2:						break;
   case 3:	tmp8 = z80_read(address) & ~(1 << n);	break;
@@ -4489,11 +4482,11 @@ static inline byte resm(z80 *pcpu, int n, word address, int offset)
 }
 
 
-/* SET *,(HL) */
+/* SET n,(HL) */
 static inline byte setm(z80 *pcpu, int n, word address, int offset)
 {
   static byte tmp8;
-  
+
   switch (pcpu->mcycle - offset) {
   case 2:						break;
   case 3:	tmp8 = z80_read(address) | (1 << n);	break;
@@ -4538,27 +4531,19 @@ static inline void bitixy(z80 *pcpu, int n, word address)
     | (pcpu->f & CF);
 }
 
-static inline void intmode2(z80 *pcpu, word address)
+
+static inline void intmode2(z80 *pcpu, byte vector)
 {
-  static byte tmp8;
-  static word tmp16;
+  static word address;
 
   switch (pcpu->mcycle) {
-  case 1:
-    tmp16 = address;
-    break;
-  case 2:
-    z80_write(--pcpu->sp, pcpu->pc >> 8);
-    break;
-  case 3:
-    z80_write(--pcpu->sp, pcpu->pc & 0xff);
-    break;
-  case 4:
-    tmp8 = z80_read(tmp16);
-    break;
+  case 1:    address = vector + (pcpu->i << 8);			break;
+  case 2:    z80_write(--pcpu->sp, pcpu->pc >> 8);		break;
+  case 3:    z80_write(--pcpu->sp, pcpu->pc & 0xff);		break;
+  case 4:    pcpu->wz = z80_read(address);			break;
   case 5:
-    pcpu->pc = tmp8 + (z80_read(tmp16 + 1) << 8);
-    break;      
+    pcpu->wz += z80_read(address + 1) << 8;
+    pcpu->pc = pcpu->wz;
+    break;
   }
 }
-
