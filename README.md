@@ -57,7 +57,7 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
   * Esc : CTRLキー単独押し (MZ-700のみ)
   * Ctrl+C : エミュレータの終了
   * Ctrl+A : デバッグ表示 ON/OFF
-  * Ctrl+W : ノーウェイト　ON/OFF
+  * Ctrl+W : ノーウェイト ON/OFF
 
 ## 制約
 
@@ -77,7 +77,7 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
 ネットでダウンロード可能なMZ-80/700用ゲームを動かしてみます。
 公開していただいている皆様に感謝します。
 
-### Wonder House (全解き動画)
+### Wonder House
 * 1983年 タスクフォース高知から発売されていたアドベンチャーゲームです
 * [MZ700WIN関連ファイル再配布所](http://mzakd.cool.coocan.jp/mz-memories/mz700win.html) からダウンロードできます
 ![Wonder House](images/wonderauto.gif)
@@ -109,5 +109,18 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
 
 * [ターミナル用PC-6001エミュレータ](http://000.la.coocan.jp/p6/basic.html#emu)内のZ80エミュレーションコード (z80.c, z80.h) を使用しています
 * [MZ-NEW MONITOR](http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6)を使用許諾条件に基づいて使用しています
-* MZ-80K/Cの仕様については[このページ](http://www43.tok2.com/home/cmpslv/Mz80k/EnrMzk.htm)の情報を参考にしています。
-* MZ-700の仕様にについては[このページ](http://www.maroon.dti.ne.jp/youkan/mz700/mzioframe.html)の情報を参考にしています。
+* MZ-80K/Cの仕様については[このページ](http://www43.tok2.com/home/cmpslv/Mz80k/EnrMzk.htm)の情報を参考にしています
+* MZ-700の仕様については[このページ](http://www.maroon.dti.ne.jp/youkan/mz700/mzioframe.html)の情報を参考にしています
+
+
+## ライセンス
+
+ttymz80に含まれるファイルのうち、以下のものはそれぞれの配布元のライセンス条件に従います。
+
+- src/z80.c
+- src/z80.h
+  - 2条項BSDライセンス ([COPYING.z80](COPYING.z80))
+- src/mz_newmon/*
+  - 「当イメージの再配布・複製・Ｗｅｂサイトへの転載は、営利を目的としない限り自由です」　([src/mz_newmon/newmon_readme.txt](src/mz_newmon/newmon_readme.txt))
+
+上記以外のすべてのファイルは2条項BSDライセンスとします。([COPYING](COPYING))

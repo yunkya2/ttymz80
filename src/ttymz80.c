@@ -1,5 +1,8 @@
 /*
- * MZ-80K/C emulator on terminal
+ * MZ-80K/C & MZ-700 emulator on terminal
+ *
+ * Copyright (c) 2023, Yuichi Nakamura <yunk@ya2.so-net.ne.jp>
+ * This software is released under 2-clause BSD license.
  */
 #include <stdio.h>
 #include <stdlib.h>
