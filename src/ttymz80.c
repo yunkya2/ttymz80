@@ -840,12 +840,15 @@ int loadfiles_num = 0;
 
 char *mz80cmt_loadfilename(void)
 {
-  static int n;
+  static int n = 0;
+  char *name;
 
-  if (n < loadfiles_num) {
-    return loadfiles[n++];
-  }
-  return "";
+  if (loadfiles_num == 0)
+    return NULL;
+
+  name = loadfiles[n++];
+  n = n % loadfiles_num;
+  return name;
 }
 
 __asm__ (

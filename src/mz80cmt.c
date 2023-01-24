@@ -111,7 +111,7 @@ void mz80cmt_motoron(int stat, int cycle)
     /* motor start */
     unsigned int term = cycle - motorchg_prev;
     motorchg_prev = cycle;
-    if (term > 300000) {
+    if (idstate == INFOBLOCK) {
       motorchg_delay = 20;    /* delayed start */
     } else {
       motor = 1;              /* immediate start */
@@ -139,6 +139,10 @@ int mz80cmt_read(void)
     idstate = INFOBLOCK;
     blockstate = BS_LEAD;
     repeatcnt = 0;
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
   } else if (saveload != SL_LOAD) {
     return 1;
   }
@@ -179,10 +183,15 @@ int mz80cmt_read(void)
           repeatcnt = 128;
 
           if (fp == NULL) {
-            fp = fopen(mz80cmt_loadfilename(), "rb");
-            if (fp) {
-              fread(infoblock, 128, 1, fp);
-            } else {
+            int len = 0;
+            char *name = mz80cmt_loadfilename();
+            if (name) {
+              fp = fopen(name, "rb");
+              if (fp) {
+                len = fread(infoblock, 128, 1, fp);
+              }
+            }
+            if (len != 1) {
               memset(infoblock, 0, 128);
               blockstate = BS_LEAD;
               return 0;
@@ -274,6 +283,10 @@ void mz80cmt_write(int bit, int cycle)
     idstate = INFOBLOCK;
     blockstate = BS_LEAD;
     repeatcnt = 0;
+    if (fp) {
+      fclose(fp);
+      fp = NULL;
+    }
   }
   saveload = SL_SAVE;
 
