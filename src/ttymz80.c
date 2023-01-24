@@ -246,7 +246,8 @@ static char *disasm(word address, char *device)
   return res;
 }
 
-#define AUTOCMD_DELAY   40
+#define AUTOCMD_DELAY       40
+#define AUTOCMD_DELAY_700   30
 
 static int mz80keyscan(void)
 {
@@ -260,14 +261,14 @@ static int mz80keyscan(void)
     static int delay = AUTOCMD_DELAY;
     if (delay >= 0) {
       delay--;
-      return 0;
+      return -1;
     }
-    delay = AUTOCMD_DELAY;
+    delay = mz700 ? AUTOCMD_DELAY_700 : AUTOCMD_DELAY;
     key = mz80autokey;
     mz80autokey = NULL;
   }
   if (key == NULL)
-    return 0;
+    return -1;
 
   for (i = 0; i < 2; i++) {
     for (j = 0; j < 10; j++) {
@@ -279,7 +280,7 @@ static int mz80keyscan(void)
       }
     }
   }
-  return 0;
+  return -1;
 }
 
 byte z80_read(word address)
@@ -333,7 +334,7 @@ byte z80_read(word address)
           (mz80key_i8255pa == 9 ||
            (scanned & (1 << mz80key_i8255pa)) != 0)) {
         int key = mz80keyscan();
-        if (key != 0) {
+        if (key >= 0) {
           bit = 1 << (7 - (key % 8));
           strobe = (key & 0x7f) / 8;
           state = key > 0x80 ? KEY_SHIFTPRESS : KEY_PRESS;
@@ -475,10 +476,12 @@ void z80_write(word address, byte data)
 
     if (mz80waitcmd && address < 0xd800) {
       char ch;
+      static int prev;
       p = mz80disphalf[disp];
       if (p && *p >= ' ' && *p < 0x80) {
         ch = *p; 
-        if (toupper(*mz80waitcmd_p++) == ch) {
+        if (total_cycles - prev > 500 &&
+            toupper(*mz80waitcmd_p++) == ch) {
           ch = *mz80waitcmd_p;
           if (ch == '\0') {
             mz80autocmd = NULL;
@@ -490,6 +493,7 @@ void z80_write(word address, byte data)
         } else {
           mz80waitcmd_p = mz80waitcmd;
         }
+        prev = total_cycles;
       }
     }
 
@@ -717,20 +721,19 @@ static void mz80main(void)
 
       delay = nowait ? (delay - 1) : 0;
       if (delay <= 0) {
-        len = read(fileno(stdin), key, sizeof(key));
+        len = read(fileno(stdin), key, sizeof(key) - 1);
         delay = 50;
       }
       if (len >= 0) {
-        key[len] = '\0';
-        mz80scankey = key;
         if (strcmp(key, "\x03") == 0) {       /* ^C : exit */
           break;
         } else if (strcmp(key, "\x01") == 0) {/* ^A : switch verbose */
           verbose = 1 - verbose;
-          mz80scankey = NULL;
         } else if (strcmp(key, "\x17") == 0) {/* ^W : wait */
           nowait = 1 - nowait;
-          mz80scankey = NULL;
+        } else {
+          key[len] = '\0';
+          mz80scankey = key;
         }
       }
     }
