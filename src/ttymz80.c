@@ -352,11 +352,7 @@ byte z80_read(word address)
         case KEY_PRESS:
           if (strobe == mz80key_i8255pa) {
             data = ~bit;
-            if (--count <= 0 ||
-                total_cycles - presstime > cpu_clock) {
-              if (total_cycles - presstime > cpu_clock) {
-                data = 0xff;
-              }
+            if (--count <= 0) {
               state = KEY_NONE;
               count = KEYPRESS_DELAY;
               presstime = total_cycles;
@@ -367,6 +363,8 @@ byte z80_read(word address)
         case KEY_SHIFTPRESS:
           if (mz80key_i8255pa == 8) {
             data = ~0x01;     /* shift key */
+          }
+          if ((scanned & (1 << mz80key_i8255pa)) != 0) {
             state = KEY_SHIFTPRESS1;
             count = KEYPRESS_DELAY;
             scanned = 0;
@@ -389,6 +387,10 @@ byte z80_read(word address)
             }
           }
           break;
+      }
+      if (total_cycles - presstime > cpu_clock) {
+        state = KEY_NONE;
+        data = 0xff;
       }
     } else if (address == 0xe002) {
       static int x;

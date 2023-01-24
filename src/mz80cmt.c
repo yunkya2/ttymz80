@@ -184,6 +184,8 @@ int mz80cmt_read(void)
               fread(infoblock, 128, 1, fp);
             } else {
               memset(infoblock, 0, 128);
+              blockstate = BS_LEAD;
+              return 0;
             }
           }
         } else {
