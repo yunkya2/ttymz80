@@ -246,8 +246,7 @@ static char *disasm(word address, char *device)
   return res;
 }
 
-#define AUTOCMD_DELAY       40
-#define AUTOCMD_DELAY_700   30
+#define AUTOCMD_DELAY       10
 
 static int mz80keyscan(void)
 {
@@ -258,14 +257,16 @@ static int mz80keyscan(void)
     key = mz80scankey;
     mz80scankey = NULL;
   } else if (mz80autokey) {
-    static int delay = AUTOCMD_DELAY;
-    if (delay >= 0) {
-      delay--;
+    static int prev = 500000;
+    if (prev < 0) {
+      prev = total_cycles;
+    }
+    if (total_cycles - prev < cpu_clock / AUTOCMD_DELAY) {
       return -1;
     }
-    delay = mz700 ? AUTOCMD_DELAY_700 : AUTOCMD_DELAY;
     key = mz80autokey;
     mz80autokey = NULL;
+    prev = -1;
   }
   if (key == NULL)
     return -1;
