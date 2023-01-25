@@ -118,7 +118,7 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, "p", "i", "y", "r", "w" },
     { NULL, NULL, NULL, "l", "j", "g", "d", "a" },
     { NULL, NULL, NULL, ";", "k", "h", "f", "s" },
-    { NULL, NULL, "\x1bOP", ".", "m", "b", "c", "z" },
+    { NULL, NULL, "\x1b[19~", ".", "m", "b", "c", "z" },
     { NULL, NULL, NULL, "/", ",", "n", "v", "x" },
     { NULL, NULL, NULL, "\r", "\x1b[C", NULL, "\x7f", "\t" },
     { NULL, NULL, NULL, NULL, NULL, "\x1b[B", " ", "\x1b[H" },
@@ -130,7 +130,7 @@ char *mz80keytbl[][10][8] = {
     { NULL, NULL, NULL, "^", "?", "\\", "[", ">" },
     { NULL, NULL, NULL, "L", "J", "G", "D", "A" },
     { NULL, NULL, NULL, NULL, "K", "H", "F", "S" },
-    { NULL, NULL, "\x1b[1;2P", NULL, "M", "B", "C" "Z" },
+    { NULL, NULL, "\x1b[19;2~", NULL, "M", "B", "C" "Z" },
     { NULL, NULL, NULL, NULL, "<", "N", "V", "X" },
     { NULL, NULL, NULL, NULL, "\x1b[D", NULL, "\x1b[2~", NULL },
     { NULL, NULL, NULL, NULL, "\x1a", "\x1b[A", NULL, "\x1b[F" },
@@ -139,7 +139,7 @@ char *mz80keytbl[][10][8] = {
 
 char *mz700keytbl[][10][8] = {
   {   /* non-shift keymap */
-    { "\x1bOQ", "\x1bOR", "=",  "\x1bOP", NULL, ";",  ":",  "\r" },
+    { "\x1b[17~", "\x1b[18~", "=",  "\x1b[19~", NULL, ";",  ":",  "\r" },
     { "y",  "z",  "@",  "(",  ")",  NULL, NULL, NULL },
     { "q",  "r",  "s",  "t",  "u",  "v",  "w",  "x"  },
     { "i",  "j",  "k",  "l",  "m",  "n",  "o",  "p"  },
@@ -148,18 +148,18 @@ char *mz700keytbl[][10][8] = {
     { "*",  "+",  "-",  " ",  "0",  "9",  ",",  "."  },
     { "\x1b[2~", "\x7f", "\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D", "?", "/" },
     { NULL, "\x1b", NULL, NULL, NULL, NULL, NULL, "\t" },
-    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { "\x1bOP", "\x1bOQ", "\x1bOR", "\x1bOS", "\x1b[15~", NULL, NULL, NULL },
   }, {
-    { "\x1b[1;2P", NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { "\x1b[17;2~", "\x1b[18;2~", NULL, "\x1b[19;2~", NULL, NULL, NULL, NULL },
     { "Y",  "Z",  "@",  NULL, NULL, NULL, NULL, NULL },
     { "Q",  "R",  "S",  "T",  "U",  "V",  "W",  "X"  },
     { "I",  "J",  "K",  "L",  "M",  "N",  "O",  "P"  },
     { "A",  "B",  "C",  "D",  "E",  "F",  "G",  "H"  },
     { "!",  "\"", "#",  "$",  "%",  "&",  "'",  "["  },
     { NULL, NULL, "\\", NULL, NULL, "]",  "<",  ">"  },
-    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { "\x1b[F", "\x1b[H", "\x1b[1;2A", "\x1b[1;2B", "\x1b[1;2C", "\x1b[1;2D", NULL, NULL },
     { "\x1a", NULL, NULL, NULL, NULL, NULL, NULL, NULL },
-    { NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { "\x1b[1;2P", "\x1b[1;2Q", "\x1b[1;2R", "\x1b[1;2S", "\x1b[15;2~", NULL, NULL, NULL },
   },
 };
 

@@ -45,19 +45,25 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
 ## キー配置
 
 * 以下の特殊キーをサポートしています
-  * F1 : 英数
-  * SHIFT+F1 : SHIFT+英数 (カナ)
-  * BackSpace : DEL
-  * Insert : SHIFT+DEL (INST)
-  * Home : HOME
-  * End : SHIFT+HOME (CLR)
-  * カーソル移動キー : カーソル移動
-  * Pause : SHIFT+BREAK
-  * TAB : SHIFTキー単独押し
-  * Esc : CTRLキー単独押し (MZ-700のみ)
-  * Ctrl+C : エミュレータの終了
-  * Ctrl+A : デバッグ表示 ON/OFF
-  * Ctrl+W : ノーウェイト ON/OFF
+  | キー           | MZ-80K/C           | MZ-700             |
+  |----------------|--------------------|--------------------|
+  | F1～F5         | ---                | F1～F5             |
+  | Shift + F1～F5 | ---                | SHIFT + F1～F5     |
+  | F6             | ---                | カナ               |
+  | F7             | ---                | GRAPH              |
+  | F8             | 英数               | 英数               |
+  | Shift+F8       | SHIFT+英数 (カナ)  | ---                |
+  | BackSpace      | DEL                | DEL                |
+  | Insert         | SHIFT+DEL (INST)   | INST               |
+  | Home           | HOME               | SHIFT+DEL (HOME)   |
+  | End            | SHIFT+HOME (CLR)   | SHIFT+INST (CLR)   |
+  | カーソル移動キー | カーソル移動     | カーソル移動       |
+  | Pause          | SHIFT+BREAK        | SHIFT+BREAK        |
+  | Tab            | SHIFT単独押し      | SHIFT単独押し      |
+  | Esc            | ---                | CTRL単独押し       |
+  | Ctrl+C         | エミュレータの終了 | エミュレータの終了 | 
+  | Ctrl+A         | デバッグ表示ON/OFF | デバッグ表示ON/OFF |
+  | Ctrl+W         | ノーウェイトON/OFF | ノーウェイトON/OFF |
 
 ## 制約
 
