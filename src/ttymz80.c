@@ -187,7 +187,7 @@ int mz700bank0;
 int mz700bank1;
 
 /* Keyboard support */
-char *(*keytbl)[10][8] = mz80keytbl;
+char **keytbl = (char **)mz80keytbl;
 int mz80key_i8255pa;
 
 char mz80_i8255pc = 0x00;
@@ -271,14 +271,10 @@ static int mz80keyscan(void)
   if (key == NULL)
     return -1;
 
-  for (i = 0; i < 2; i++) {
-    for (j = 0; j < 10; j++) {
-      for (k = 0; k < 8; k++) {
-        if (keytbl[i][j][k] &&
-            (strcmp(keytbl[i][j][k], key) == 0)) {
-              return k + j * 8 + i * 128;
-        }
-      }
+  for (i = 0; i < 2 * 10 * 8; i++) {
+    if (keytbl[i] &&
+        (strcmp(keytbl[i], key) == 0)) {
+          return i;
     }
   }
   return -1;
@@ -331,64 +327,48 @@ byte z80_read(word address)
       static int count;
       static int presstime;
 
+      int newscan = 1 << mz80key_i8255pa;
       if (state == KEY_NONE &&
-          (mz80key_i8255pa == 9 ||
-           (scanned & (1 << mz80key_i8255pa)) != 0)) {
+          (mz80key_i8255pa == 9 || (scanned & newscan) != 0)) {
         int key = mz80keyscan();
         if (key >= 0) {
           bit = 1 << (7 - (key % 8));
-          strobe = (key & 0x7f) / 8;
-          state = key > 0x80 ? KEY_SHIFTPRESS : KEY_PRESS;
+          strobe = (key / 8) % 10;
+          state = key > 8 * 10 ? KEY_SHIFTPRESS : KEY_PRESS;
           count = KEYPRESS_DELAY;
           presstime = total_cycles;
         }
         scanned = 0;
       }
-      scanned |= 1 << mz80key_i8255pa;
 
       switch (state) {
-        case KEY_NONE:
-          break;
-
-        case KEY_PRESS:
-          if (strobe == mz80key_i8255pa) {
-            data = ~bit;
-            if (--count <= 0) {
-              state = KEY_NONE;
-              count = KEYPRESS_DELAY;
-              presstime = total_cycles;
-            }
-          }
-          break;
-
         case KEY_SHIFTPRESS:
           if (mz80key_i8255pa == 8) {
             data = ~0x01;     /* shift key */
           }
-          if ((scanned & (1 << mz80key_i8255pa)) != 0) {
+          if (scanned & newscan) {
             state = KEY_SHIFTPRESS1;
             count = KEYPRESS_DELAY;
-            scanned = 0;
             presstime = total_cycles;
+            scanned = 0;
           }
           break;
+
         case KEY_SHIFTPRESS1:
           if (mz80key_i8255pa == 8) {
-            data = ~0x01;
+            data = ~0x01;     /* shift key */
           }
-          if (strobe == mz80key_i8255pa) {
+          /* fall through */
+        case KEY_PRESS:
+          if (mz80key_i8255pa == strobe) {
             data &= ~bit;
-          }
-          if ((scanned & (1 << 8)) &&
-              (scanned & (1 << strobe))) {
             if (--count <= 0) {
               state = KEY_NONE;
-              count = KEYPRESS_DELAY;
-              presstime = total_cycles;
             }
           }
           break;
       }
+      scanned |= newscan;
       if (total_cycles - presstime > cpu_clock) {
         state = KEY_NONE;
         data = 0xff;
@@ -928,7 +908,7 @@ int main(int argc, char **argv)
       halfwidth = 1;
     } else if (strcmp(argv[i], "-7") == 0) {
       mz700 = 1;
-      keytbl = mz700keytbl;
+      keytbl = (char **)mz700keytbl;
       cpu_clock = 3579545;
       count1_clock = 15699;
     } else {
