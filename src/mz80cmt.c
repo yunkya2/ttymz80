@@ -26,7 +26,6 @@ enum saveload {
   SL_IDLE,
   SL_SAVE,
   SL_LOAD,
-  SL_END,
 };
 
 enum idstate {
@@ -79,7 +78,6 @@ int mz80cmt_motorstat(void)
   if (motorchg_delay) {
     if (--motorchg_delay <= 0) {
       motor = 1;        /* delay done */
-      saveload = SL_IDLE;
       if (nowait_save < 0)
         nowait_save = nowait;
       nowait = 1;
@@ -227,7 +225,7 @@ int mz80cmt_read(void)
           }
           idstate = INFOBLOCK;
           blockstate = BS_LEAD - 1;
-          saveload = SL_END;
+          saveload = SL_IDLE;
           return 1;
         }
         break;
@@ -368,7 +366,7 @@ void mz80cmt_write(int bit, int cycle)
           }
           idstate = INFOBLOCK;
           blockstate = BS_LEAD;
-          saveload = SL_END;
+          saveload = SL_IDLE;
           return;
         }
     }
