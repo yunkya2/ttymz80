@@ -712,7 +712,9 @@ static void mz80main(void)
           break;
         } else if (strcmp(key, "\x01") == 0) {/* ^A : switch verbose */
           verbose = 1 - verbose;
-        } else if (strcmp(key, "\x17") == 0) {/* ^W : wait */
+        } else if (strcmp(key, "\x0e") == 0) {/* ^N : switch disp */
+          nodisp = 1 - nodisp;
+        } else if (strcmp(key, "\x17") == 0) {/* ^W : switch wait */
           nowait = 1 - nowait;
         } else {
           key[len] = '\0';
@@ -828,7 +830,9 @@ char *mz80cmt_loadfilename(void)
     return NULL;
 
   name = loadfiles[n++];
-  n = n % loadfiles_num;
+  if (n >= loadfiles_num) {
+    n = loadfiles_num > 1 ? 1 : 0;
+  }
   return name;
 }
 

@@ -66,6 +66,7 @@ static byte sumdata[2];
 
 static FILE *fp;
 
+extern int mz700;
 extern int nowait;
 static int nowait_save = -1;
 
@@ -73,14 +74,27 @@ static int nowait_save = -1;
 /* motor control */
 /****************************************************************************/
 
+static void motoron(void)
+{
+  motor = 1;
+  if (nowait_save < 0)
+    nowait_save = nowait;
+   nowait = 1;
+}
+
+static void motoroff(void)
+{
+  motor = 0;
+  if (nowait_save >= 0)
+    nowait = nowait_save;
+  nowait_save = -1;
+}
+
 int mz80cmt_motorstat(void)
 {
   if (motorchg_delay) {
     if (--motorchg_delay <= 0) {
-      motor = 1;        /* delay done */
-      if (nowait_save < 0)
-        nowait_save = nowait;
-      nowait = 1;
+      motoron();
     }
   }
   return motor;
@@ -100,22 +114,19 @@ void mz80cmt_motoron(int stat, int cycle)
   /* rising edge .. motor status change */
   if (motor) {
     /* motor stop */
-    motor = 0;
+    motoroff();
     motorchg_prev = cycle;
-    if (nowait_save >= 0)
-      nowait = nowait_save;
-    nowait_save = -1;
   } else {
     /* motor start */
     unsigned int term = cycle - motorchg_prev;
     motorchg_prev = cycle;
     if (idstate == INFOBLOCK) {
       motorchg_delay = 20;    /* delayed start */
+      idstate = INFOBLOCK;
+      saveload = SL_IDLE;
     } else {
-      motor = 1;              /* immediate start */
-      if (nowait_save < 0)
-        nowait_save = nowait;
-      nowait = 1;
+      motoron();
+      motorchg_delay = 0;
     }
   }
 }
@@ -132,6 +143,7 @@ int mz80cmt_read(void)
   if (!motor) {
     return 1;
   }
+
   if (saveload == SL_IDLE) {
     saveload = SL_LOAD;
     idstate = INFOBLOCK;
@@ -224,7 +236,7 @@ int mz80cmt_read(void)
             fp = NULL;
           }
           idstate = INFOBLOCK;
-          blockstate = BS_LEAD - 1;
+          blockstate = BS_LEAD;
           saveload = SL_IDLE;
           return 1;
         }
@@ -277,6 +289,7 @@ void mz80cmt_write(int bit, int cycle)
   if (!motor) {
     return;
   }
+
   if (saveload == SL_IDLE) {
     idstate = INFOBLOCK;
     blockstate = BS_LEAD;
@@ -293,12 +306,12 @@ void mz80cmt_write(int bit, int cycle)
   if (!bit) {
     return;
   }
-  bit = (term > 700);
+  bit = (term > (mz700 ? 1200 : 700));
 
 //  printf("%d", bit); fflush(stdout);
 
   if (repeatcnt == 0) {
-//    printf("(%d%d)", idstate, blockstate); fflush(stdout);
+//    printf("[%d%d]", idstate, blockstate); fflush(stdout);
 
     switch (blockstate) {
       /* informaiton block */
@@ -353,22 +366,6 @@ void mz80cmt_write(int bit, int cycle)
         repeatcnt = 2;
         rwbitcount = 0;
         break;
-
-      case BS_END:
-        if (idstate == INFOBLOCK) {
-          idstate = DATABLOCK;
-          blockstate = BS_LEAD;
-          return;
-        } else {
-          if (fp != NULL) {
-            fclose(fp);
-            fp = NULL;
-          }
-          idstate = INFOBLOCK;
-          blockstate = BS_LEAD;
-          saveload = SL_IDLE;
-          return;
-        }
     }
   }
 
@@ -407,6 +404,22 @@ void mz80cmt_write(int bit, int cycle)
           blockstate++;
         }
       }
+    }
+  }
+
+  if (blockstate == BS_END) {
+    if (idstate == INFOBLOCK) {
+      idstate = DATABLOCK;
+      blockstate = BS_LEAD;
+    } else {
+      if (fp != NULL) {
+        fclose(fp);
+        fp = NULL;
+      }
+      idstate = INFOBLOCK;
+      blockstate = BS_LEAD;
+      saveload = SL_IDLE;
+      motoroff();
     }
   }
 }
