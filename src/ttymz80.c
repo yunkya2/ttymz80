@@ -892,9 +892,9 @@ int main(int argc, char **argv)
           help = 1;
           break;
         }
-        fseek(fp, 0, SEEK_END);
-        int len = ftell(fp);
-        fseek(fp, 0, SEEK_SET);
+        struct stat statbuf;
+        fstat(fileno(fp), &statbuf);
+        int len = statbuf.st_size;
         mz80autocmd = realloc(mz80autocmd, autocmdlen + len + 1);
         fread(&mz80autocmd[autocmdlen], len, 1, fp);
         mz80autocmd[autocmdlen + len] = '\0';

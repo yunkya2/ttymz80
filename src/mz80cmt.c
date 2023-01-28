@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "z80.h"
 #include "mz80cmt.h"
 
@@ -149,10 +150,6 @@ int mz80cmt_read(void)
     idstate = INFOBLOCK;
     blockstate = BS_LEAD;
     repeatcnt = 0;
-    if (fp) {
-      fclose(fp);
-      fp = NULL;
-    }
   } else if (saveload != SL_LOAD) {
     return 1;
   }
@@ -192,20 +189,20 @@ int mz80cmt_read(void)
           rwptr = infoblock;
           repeatcnt = 128;
 
+          int len = 0;
           if (fp == NULL) {
-            int len = 0;
             char *name = mz80cmt_loadfilename();
             if (name) {
               fp = fopen(name, "rb");
-              if (fp) {
-                len = fread(infoblock, 128, 1, fp);
-              }
             }
-            if (len != 1) {
-              memset(infoblock, 0, 128);
-              blockstate = BS_LEAD;
-              return 0;
-            }
+          }
+          if (fp) {
+            len = fread(infoblock, 128, 1, fp);
+          }
+          if (len != 1) {
+            memset(infoblock, 0, 128);
+            blockstate = BS_LEAD;
+            return 0;
           }
         } else {
           rwaction = AC_FILEBYTE;
@@ -232,8 +229,12 @@ int mz80cmt_read(void)
           blockstate = BS_LEAD - 1;
         } else {
           if (fp != NULL) {
-            fclose(fp);
-            fp = NULL;
+            struct stat statbuf;
+            fstat(fileno(fp), &statbuf);
+            if (ftell(fp) + 128 >= statbuf.st_size) {
+              fclose(fp);
+              fp = NULL;
+            }
           }
           idstate = INFOBLOCK;
           blockstate = BS_LEAD;
