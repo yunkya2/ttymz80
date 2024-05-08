@@ -130,7 +130,7 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
 
 * [ターミナル用PC-6001エミュレータ](http://000.la.coocan.jp/p6/basic.html#emu)内のZ80エミュレーションコード (z80.c, z80.h) を使用しています
 * [MZ-NEW MONITOR](http://mzakd.cool.coocan.jp/mz-memories/mz700win.html##6)を使用許諾条件に基づいて使用しています
-* MZ-80K/Cの仕様については[このページ](http://www43.tok2.com/home/cmpslv/Mz80k/EnrMzk.htm)の情報を参考にしています
+* MZ-80K/Cの仕様については[このページ](http://cmpslv2.starfree.jp/Mz80k/EnrMzk.htm)の情報を参考にしています
 * MZ-700の仕様については[このページ](http://www.maroon.dti.ne.jp/youkan/mz700/mzioframe.html)の情報を参考にしています
 
 
