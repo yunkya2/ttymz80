@@ -109,6 +109,21 @@ Usage: ttymz80 [-a][-n][-w][-H][-7][-r <ROM image>][-c <cmd>][-C <cmdfile>] [<mz
 
 ![SPACE HARRIER](images/spharrier.gif)
 
+### ロポコ (ROPOKO)
+* Tookato氏作 [BOOTH](https://booth.pm/ja/items/3736517) にて販売中
+* プログラムファイルとデータファイルA/Bに分かれているため、プレイする箇所によって起動方法が変わります。
+  * 前半をプレイする場合
+    * ```ttymz80 -a -7 ROPOKO_P.mzt ROPOKO_A.mzt```
+  * 前半のセーブデータをロードする場合    
+    * ```ttymz80 -a -7 ROPOKO_P.mzt ROPOKO_A.mzt SA-ROPOKO.mzt```
+  * 後半をプレイする場合
+    * ```ttymz80 -a -7 ROPOKO_P.mzt ROPOKO_B.mzt```
+  * 後半のセーブデータをロードする場合    
+    * ```ttymz80 -a -7 ROPOKO_P.mzt ROPOKO_B.mzt SB-ROPOKO.mzt```
+* ゲーム中にあるミニゲーム「プチロポコ」で「カーソルキーを押しながらスペースを押す」という操作があってターミナルではこの入力をサポートできないため、個別対応を入れてあります。代わりに「CTRLキーを押しながらカーソルキーを押す」操作を行ってください。
+
+![ROPOKO](images/ropoko.gif)
+
 ## 謝辞
 
 開発には以下のソースコードやデータ等を使用させていただきました。ありがとうございます。
