@@ -158,7 +158,7 @@ char *mz700keytbl[][10][8] = {
     { "!",  "\"", "#",  "$",  "%",  "&",  "'",  "["  },
     { NULL, NULL, "\\", NULL, NULL, "]",  "<",  ">"  },
     { "\x1b[F", "\x1b[H", "\x1b[1;2A", "\x1b[1;2B", "\x1b[1;2C", "\x1b[1;2D", NULL, NULL },
-    { "\x1a", NULL, NULL, NULL, NULL, NULL, NULL, NULL },
+    { "\x1a", NULL, "\x1b[1;5A", "\x1b[1;5B", "\x1b[1;5C", "\x1b[1;5D", NULL, NULL },
     { "\x1b[1;2P", "\x1b[1;2Q", "\x1b[1;2R", "\x1b[1;2S", "\x1b[15;2~", NULL, NULL, NULL },
   },
 };
@@ -343,8 +343,14 @@ byte z80_read(word address)
 
       switch (state) {
         case KEY_SHIFTPRESS:
-          if (mz80key_i8255pa == 8) {
-            data = ~0x01;     /* shift key */
+          if (strobe == 8 && (bit >= (1 << 2) && bit <= (1 << 5))) {
+            if (mz80key_i8255pa == 7) {
+              data = ~bit;     /* cursor key */
+            }
+          } else {
+            if (mz80key_i8255pa == 8) {
+              data = ~0x01;     /* shift key */
+            }
           }
           if (scanned & newscan) {
             state = KEY_SHIFTPRESS1;
@@ -355,15 +361,30 @@ byte z80_read(word address)
           break;
 
         case KEY_SHIFTPRESS1:
-          if (mz80key_i8255pa == 8) {
-            data = ~0x01;     /* shift key */
+          if (strobe == 8 && (bit >= (1 << 2) && bit <= (1 << 5))) {
+            if (mz80key_i8255pa == 7) {
+              data = ~bit;     /* cursor key */
+            }
+          } else {
+            if (mz80key_i8255pa == 8) {
+              data = ~0x01;     /* shift key */
+            }
           }
           /* fall through */
         case KEY_PRESS:
-          if (mz80key_i8255pa == strobe) {
-            data &= ~bit;
+          if (strobe == 8 && (bit >= (1 << 2) && bit <= (1 << 5))) {
+            if (mz80key_i8255pa == 6) {
+              data = ~0x10;     /* space key */
+            }
             if (--count <= 0) {
               state = KEY_NONE;
+            }
+          } else {
+            if (mz80key_i8255pa == strobe) {
+              data &= ~bit;
+              if (--count <= 0) {
+                state = KEY_NONE;
+              }
             }
           }
           break;
